@@ -4,7 +4,6 @@ import { HttpClient } from '@angular/common/http'; // Import HttpClient for maki
 import { FlatTreeControl } from '@angular/cdk/tree'; // Import FlatTreeControl for managing the tree structure
 import { MatTreeFlattener, MatTreeFlatDataSource, MatTreeModule } from '@angular/material/tree'; // Import Angular Material tree modules
 import { MatButtonModule } from '@angular/material/button'; // Import Angular Material button module
-import { MatCheckboxModule } from '@angular/material/checkbox'; // Import Angular Material checkbox module
 import { MatIconModule } from '@angular/material/icon'; // Import Angular Material icon module
 import { MatFormFieldModule } from '@angular/material/form-field'; // Import Angular Material form field module
 import { MatInputModule } from '@angular/material/input'; // Import Angular Material input module
@@ -12,30 +11,24 @@ import { CdkTreeModule } from '@angular/cdk/tree'; // Import CDK tree module
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'; // Import ReactiveFormsModule for handling forms
 import { SelectionModel } from '@angular/cdk/collections'; // Import SelectionModel for managing selected nodes
 import { HttpClientModule } from '@angular/common/http'; // Import HttpClientModule for HTTP requests
+import { CommonModule } from '@angular/common';
 
-/**
- * Node for to-do item
- */
+// Node for to-do item
 export class TodoItemNode {
-  children: TodoItemNode[]; // List of child nodes
-  item: string; // Item name
+  children: TodoItemNode[] = []; // List of child nodes
+  item: string = ''; // Item name
 }
 
 export class TodoItemFlatNode {
-  item: string; // Item name
-  level: number; // Level in the tree
-  expandable: boolean; // Whether the node can be expanded
+  item: string = ''; // Item name
+  level: number = 0; // Level in the tree
+  expandable: boolean = false; // Whether the node can be expanded
 }
 
-/**
- * Service for managing checklist data
- */
+// Service for managing checklist data
 @Injectable()
 export class ChecklistDatabase {
-  updateItem(nestedNode: TodoItemNode, itemValue: string) {
-    throw new Error('Method not implemented.');
-  }
-  private apiUrl = 'http://localhost:1337/api/trees?populate=*'; // API URL to fetch node data
+  private apiUrl = 'http://localhost:1337/api/tree/get'; // API URL to fetch node data
   dataChange = new BehaviorSubject<TodoItemNode[]>([]); // BehaviorSubject to manage data state
 
   constructor(private http: HttpClient) {
@@ -51,16 +44,11 @@ export class ChecklistDatabase {
   initialize() {
     this.http.get<any>(this.apiUrl).subscribe(
       (response: any) => {
-        if (response && response.data) {
-          try {
-            const data = this.mapNodes(response.data); // Map API response to tree structure
-            this.dataChange.next(data); // Update data state
-          } catch (error) {
-            console.error('Error processing data:', error); // Handle data processing errors
-            this.dataChange.next([]); // Set empty data on error
-          }
-        } else {
-          console.error('Unexpected response structure:', response); // Handle unexpected response structure
+        try {
+          const data = this.mapNodes(response); // Directly use the response data
+          this.dataChange.next(data); // Update data state
+        } catch (error) {
+          console.error('Error processing data:', error); // Handle data processing errors
           this.dataChange.next([]); // Set empty data on error
         }
       },
@@ -71,34 +59,17 @@ export class ChecklistDatabase {
     );
   }
 
-  // Map API response to TodoItemNode structure
+  // Directly use the API response structure
   mapNodes(nodes: any[]): TodoItemNode[] {
-    const nodeMap: { [key: number]: TodoItemNode } = {}; // Map to store nodes by ID
-    const rootNodes: TodoItemNode[] = []; // List to store root nodes
+    // Convert API response to TodoItemNode structure
+    const convertToTodoItemNode = (node: any): TodoItemNode => {
+      const todoItemNode = new TodoItemNode();
+      todoItemNode.item = node.node;
+      todoItemNode.children = (node.children || []).map(convertToTodoItemNode);
+      return todoItemNode;
+    };
 
-    // Create all nodes and map by ID
-    nodes.forEach(node => {
-      const itemNode = new TodoItemNode();
-      itemNode.item = node.attributes?.node || 'Unnamed Node'; // Default value if name is not available
-      itemNode.children = [];
-      nodeMap[node.id] = itemNode;
-    });
-
-    // Establish parent-child relationships
-    nodes.forEach(node => {
-      const itemNode = nodeMap[node.id];
-      const parent = node.attributes?.parent?.data;
-
-      // Add node to its parent's children if it has a parent
-      if (parent && nodeMap[parent.id]) {
-        nodeMap[parent.id].children.push(itemNode);
-      } else {
-        // Add to root nodes if it has no parent
-        rootNodes.push(itemNode);
-      }
-    });
-
-    return rootNodes; // Return constructed tree
+    return nodes.map(convertToTodoItemNode); // Convert all nodes
   }
 }
 
@@ -111,7 +82,18 @@ export class ChecklistDatabase {
   styleUrls: ['tree.component.scss'], // Component styles URL
   providers: [ChecklistDatabase], // Provide the ChecklistDatabase service
   standalone: true, // Standalone component
-  imports: [MatCheckboxModule, FormsModule, MatFormFieldModule, MatInputModule, HttpClientModule, MatButtonModule, MatTreeModule, MatIconModule, MatFormFieldModule, MatInputModule, CdkTreeModule, ReactiveFormsModule], // Import necessary modules
+  imports: [
+    FormsModule,  
+    MatButtonModule, 
+    MatTreeModule, 
+    MatIconModule, 
+    MatFormFieldModule, 
+    MatInputModule, 
+    CdkTreeModule, 
+    ReactiveFormsModule,
+    CommonModule,
+    HttpClientModule
+  ], // Import necessary modules
 })
 export class TreeComponent {
   flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
@@ -164,7 +146,7 @@ export class TreeComponent {
   saveNode(node: TodoItemFlatNode, itemValue: string) {
     const nestedNode = this.flatNodeMap.get(node);
     if (nestedNode) {
-      this._database.updateItem(nestedNode, itemValue);
+      // this._database.updateItem(nestedNode, itemValue);
       this.editingNode = null;
     }
   }
