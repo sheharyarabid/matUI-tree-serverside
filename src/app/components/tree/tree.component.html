@@ -2,13 +2,15 @@
   <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
     <button mat-icon-button disabled></button>
     {{node.item}}
+    <button mat-icon-button><mat-icon>add</mat-icon></button>
+    <input matInput #itemValue placeholder="Enter new node">
   </mat-tree-node>
 
   <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
     <button mat-icon-button disabled></button>
     <mat-form-field appearance="fill">
       <mat-label>New item...</mat-label>
-      <input matInput #itemValue placeholder="Ex. Lettuce">
+      <input matInput #itemValue placeholder="Enter new node">
     </mat-form-field>
     <button mat-button (click)="saveNode(node, itemValue.value)">Save</button>
   </mat-tree-node>
@@ -21,6 +23,7 @@
       </mat-icon>
     </button>
     {{node.item}}
-    <!-- <button mat-icon-button (click)="addNewItem(node)"><mat-icon>add</mat-icon></button> -->
+    <button mat-icon-button><mat-icon>add</mat-icon></button>
+    <input matInput #itemValue placeholder="Enter new node">
   </mat-tree-node>
 </mat-tree>

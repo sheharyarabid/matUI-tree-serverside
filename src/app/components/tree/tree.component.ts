@@ -9,7 +9,7 @@ import { MatIconModule } from '@angular/material/icon'; // Import Angular Materi
 import { MatFormFieldModule } from '@angular/material/form-field'; // Import Angular Material form field module
 import { MatInputModule } from '@angular/material/input'; // Import Angular Material input module
 import { CdkTreeModule } from '@angular/cdk/tree'; // Import CDK tree module
-import { ReactiveFormsModule } from '@angular/forms'; // Import ReactiveFormsModule for handling forms
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'; // Import ReactiveFormsModule for handling forms
 import { SelectionModel } from '@angular/cdk/collections'; // Import SelectionModel for managing selected nodes
 import { HttpClientModule } from '@angular/common/http'; // Import HttpClientModule for HTTP requests
 
@@ -32,7 +32,10 @@ export class TodoItemFlatNode {
  */
 @Injectable()
 export class ChecklistDatabase {
-  private apiUrl = 'http://localhost:1337/api/nodes?populate=*'; // API URL to fetch node data
+  updateItem(nestedNode: TodoItemNode, itemValue: string) {
+    throw new Error('Method not implemented.');
+  }
+  private apiUrl = 'http://localhost:1337/api/trees?populate=*'; // API URL to fetch node data
   dataChange = new BehaviorSubject<TodoItemNode[]>([]); // BehaviorSubject to manage data state
 
   constructor(private http: HttpClient) {
@@ -50,7 +53,7 @@ export class ChecklistDatabase {
       (response: any) => {
         if (response && response.data) {
           try {
-            const data = this.buildFileTree(response.data, 0); // Build tree structure
+            const data = this.mapNodes(response.data); // Map API response to tree structure
             this.dataChange.next(data); // Update data state
           } catch (error) {
             console.error('Error processing data:', error); // Handle data processing errors
@@ -68,34 +71,30 @@ export class ChecklistDatabase {
     );
   }
 
-  // Build tree structure from nodes
-  buildFileTree(nodes: any[], level: number): TodoItemNode[] {
+  // Map API response to TodoItemNode structure
+  mapNodes(nodes: any[]): TodoItemNode[] {
     const nodeMap: { [key: number]: TodoItemNode } = {}; // Map to store nodes by ID
     const rootNodes: TodoItemNode[] = []; // List to store root nodes
 
-    // First pass: Create all nodes and map by ID
+    // Create all nodes and map by ID
     nodes.forEach(node => {
       const itemNode = new TodoItemNode();
-      itemNode.item = node.attributes?.name || 'Unnamed Node'; // Default value if name is not available
+      itemNode.item = node.attributes?.node || 'Unnamed Node'; // Default value if name is not available
       itemNode.children = [];
       nodeMap[node.id] = itemNode;
     });
 
-    // Second pass: Establish parent-child relationships
+    // Establish parent-child relationships
     nodes.forEach(node => {
       const itemNode = nodeMap[node.id];
-      const children = node.attributes?.children?.data || [];
-      
-      // Assign children nodes
-      children.forEach((child: any) => {
-        if (nodeMap[child.id]) {
-          itemNode.children.push(nodeMap[child.id]); // Add child to the parent node
-        }
-      });
+      const parent = node.attributes?.parent?.data;
 
-      // Root node(s) have no parent
-      if (!node.attributes?.parent?.data) {
-        rootNodes.push(itemNode); // Add to root nodes
+      // Add node to its parent's children if it has a parent
+      if (parent && nodeMap[parent.id]) {
+        nodeMap[parent.id].children.push(itemNode);
+      } else {
+        // Add to root nodes if it has no parent
+        rootNodes.push(itemNode);
       }
     });
 
@@ -112,45 +111,40 @@ export class ChecklistDatabase {
   styleUrls: ['tree.component.scss'], // Component styles URL
   providers: [ChecklistDatabase], // Provide the ChecklistDatabase service
   standalone: true, // Standalone component
-  imports: [MatCheckboxModule, HttpClientModule, MatButtonModule, MatTreeModule, MatIconModule, MatFormFieldModule, MatInputModule, CdkTreeModule, ReactiveFormsModule], // Import necessary modules
+  imports: [MatCheckboxModule, FormsModule, MatFormFieldModule, MatInputModule, HttpClientModule, MatButtonModule, MatTreeModule, MatIconModule, MatFormFieldModule, MatInputModule, CdkTreeModule, ReactiveFormsModule], // Import necessary modules
 })
 export class TreeComponent {
-  flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>(); // Map to associate flat nodes with tree nodes
-  nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>(); // Map to associate tree nodes with flat nodes
-  selectedParent: TodoItemFlatNode | null = null; // Selected parent node
-  newItemName = ''; // New item name
-  treeControl: FlatTreeControl<TodoItemFlatNode>; // FlatTreeControl for managing tree structure
-  treeFlattener: MatTreeFlattener<TodoItemNode, TodoItemFlatNode>; // MatTreeFlattener to flatten nodes
-  dataSource: MatTreeFlatDataSource<TodoItemNode, TodoItemFlatNode>; // Data source for the tree
-  checklistSelection = new SelectionModel<TodoItemFlatNode>(true /* multiple */); // Selection model for managing selected nodes
+  flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
+  nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
+  selectedParent: TodoItemFlatNode | null = null;
+  newItemName = '';
+  treeControl: FlatTreeControl<TodoItemFlatNode>;
+  treeFlattener: MatTreeFlattener<TodoItemNode, TodoItemFlatNode>;
+  dataSource: MatTreeFlatDataSource<TodoItemNode, TodoItemFlatNode>;
+  checklistSelection = new SelectionModel<TodoItemFlatNode>(true /* multiple */);
+  editingNode: TodoItemFlatNode | null = null; // New property to track editing node
 
   constructor(private _database: ChecklistDatabase) {
     this.treeFlattener = new MatTreeFlattener(
-      this.transformer, // Function to convert tree node to flat node
-      this.getLevel, // Function to get the level of a flat node
-      this.isExpandable, // Function to check if a flat node is expandable
-      this.getChildren, // Function to get children of a tree node
+      this.transformer,
+      this.getLevel,
+      this.isExpandable,
+      this.getChildren,
     );
-    this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable); // Initialize tree control
-    this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener); // Initialize data source
+    this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
+    this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
 
-    this._database.dataChange.subscribe(data => {
-      this.dataSource.data = data; // Update data source when data changes
+    _database.dataChange.subscribe(data => {
+      this.dataSource.data = data;
     });
   }
 
-  // Function to get the level of a flat node
   getLevel = (node: TodoItemFlatNode) => node.level;
-  // Function to check if a flat node is expandable
   isExpandable = (node: TodoItemFlatNode) => node.expandable;
-  // Function to get children of a tree node
   getChildren = (node: TodoItemNode): TodoItemNode[] => node.children;
-  // Function to check if a flat node has children
   hasChild = (_: number, _nodeData: TodoItemFlatNode) => _nodeData.expandable;
-  // Function to check if a flat node has no content
   hasNoContent = (_: number, _nodeData: TodoItemFlatNode) => _nodeData.item === '';
 
-  // Transformer function to convert tree node to flat node
   transformer = (node: TodoItemNode, level: number) => {
     const existingNode = this.nestedNodeMap.get(node);
     const flatNode =
@@ -163,11 +157,22 @@ export class TreeComponent {
     return flatNode;
   };
 
-  // Function to get the parent node of a flat node
+  showInputField(node: TodoItemFlatNode) {
+    this.editingNode = this.editingNode === node ? null : node;
+  }
+
+  saveNode(node: TodoItemFlatNode, itemValue: string) {
+    const nestedNode = this.flatNodeMap.get(node);
+    if (nestedNode) {
+      this._database.updateItem(nestedNode, itemValue);
+      this.editingNode = null;
+    }
+  }
+
   getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
     const currentLevel = this.getLevel(node);
     if (currentLevel < 1) {
-      return null; // No parent if at root level
+      return null;
     }
 
     const startIndex = this.treeControl.dataNodes.indexOf(node) - 1;
@@ -175,19 +180,9 @@ export class TreeComponent {
     for (let i = startIndex; i >= 0; i--) {
       const currentNode = this.treeControl.dataNodes[i];
       if (this.getLevel(currentNode) < currentLevel) {
-        return currentNode; // Return the parent node
+        return currentNode;
       }
     }
-    return null; // No parent found
-  }
-
-
-  addNewItem(node: TodoItemFlatNode) {
-    // This method is not used  yet
-  }
-
-
-  saveNode(node: TodoItemFlatNode, itemValue: string) {
-    // This method is not used yet
+    return null;
   }
 }
