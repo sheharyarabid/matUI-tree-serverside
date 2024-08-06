@@ -1,29 +1,36 @@
 <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+  <!-- Node definition with input fields -->
   <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-    <button mat-icon-button disabled></button>
+    <button mat-icon-button [hidden]="!node.expandable">
+      <mat-icon>expand_more</mat-icon>
+    </button>
     {{node.item}}
-    <button mat-icon-button><mat-icon>add</mat-icon></button>
-    <input matInput #itemValue placeholder="Enter new node">
+    <button mat-icon-button (click)="saveNode(node)">
+    </button>
+    <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+    <button mat-button (click)="saveNode(node)">Save</button>
   </mat-tree-node>
-
   <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
-    <button mat-icon-button disabled></button>
+    <button mat-icon-button [hidden]="!node.expandable"></button>
     <mat-form-field appearance="fill">
       <mat-label>New item...</mat-label>
-      <input matInput #itemValue placeholder="Enter new node">
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+      <button mat-button (click)="saveNode(node)">Save</button>
     </mat-form-field>
-    <button mat-button (click)="saveNode(node, itemValue.value)">Save</button>
   </mat-tree-node>
-
   <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
     <button mat-icon-button matTreeNodeToggle
-            [attr.aria-label]="'Toggle ' + node.item">
+            [attr.aria-label]="'Toggle ' + node.item"
+            [disabled]="!node.expandable">
       <mat-icon class="mat-icon-rtl-mirror">
         {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
       </mat-icon>
     </button>
     {{node.item}}
-    <button mat-icon-button><mat-icon>add</mat-icon></button>
-    <input matInput #itemValue placeholder="Enter new node">
+    <button mat-icon-button (click)="saveNode(node)">
+      
+    </button>
+    <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+    <button mat-button (click)="saveNode(node)">Save</button>
   </mat-tree-node>
 </mat-tree>
