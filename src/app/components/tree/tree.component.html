@@ -5,32 +5,93 @@
       <mat-icon>expand_more</mat-icon>
     </button>
     {{node.item}}
-    <button mat-icon-button (click)="saveNode(node)">
+    <button mat-icon-button (click)="toggleInputField()">
+      <mat-icon>add</mat-icon>
     </button>
-    <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-    <button mat-button (click)="saveNode(node)">Save</button>
-  </mat-tree-node>
-  <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
-    <button mat-icon-button [hidden]="!node.expandable"></button>
-    <mat-form-field appearance="fill">
-      <mat-label>New item...</mat-label>
+    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+      <mat-label>Enter new node</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-      <button mat-button (click)="saveNode(node)">Save</button>
+    </mat-form-field>
+
+    <button mat-icon-button (click)="saveNode(node)">
+      <mat-icon>save</mat-icon>
+    </button>
+    <button mat-icon-button (click)="deleteNode(node.id)">
+      <mat-icon>delete</mat-icon>
+    </button>
+    <button mat-icon-button (click)="editNode(node)">
+      <mat-icon>edit</mat-icon>
+    </button>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Node Name</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
+    </mat-form-field>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Parent ID</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
     </mat-form-field>
   </mat-tree-node>
+
+  <!-- Node definition for nodes without content -->
+  <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
+    <button mat-icon-button [hidden]="!node.expandable"></button>
+    <button mat-icon-button (click)="toggleInputField()">
+      <mat-icon>add</mat-icon>
+    </button>
+    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+      <mat-label>Enter new node</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+    </mat-form-field>
+    <button mat-button (click)="saveNode(node)">
+        <mat-icon>save</mat-icon>
+      </button>
+    <button mat-button (click)="deleteNode(node.id)">
+      <mat-icon>delete</mat-icon>
+    </button>
+    <button mat-button (click)="editNode(node)">
+      <mat-icon>edit</mat-icon>
+    </button>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Node Name</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
+    </mat-form-field>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Parent ID</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
+    </mat-form-field>
+  </mat-tree-node>
+
+  <!-- Node definition for expandable nodes -->
   <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-    <button mat-icon-button matTreeNodeToggle
-            [attr.aria-label]="'Toggle ' + node.item"
-            [disabled]="!node.expandable">
+    <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.item" [disabled]="!node.expandable">
       <mat-icon class="mat-icon-rtl-mirror">
         {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
       </mat-icon>
     </button>
     {{node.item}}
-    <button mat-icon-button (click)="saveNode(node)">
-      
+    <button mat-icon-button (click)="toggleInputField()">
+      <mat-icon>add</mat-icon>
     </button>
-    <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-    <button mat-button (click)="saveNode(node)">Save</button>
+    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+      <mat-label>Enter new node</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+    </mat-form-field>
+    <button mat-icon-button (click)="saveNode(node)">
+      <mat-icon>save</mat-icon>
+    </button>
+    <button mat-icon-button (click)="deleteNode(node.id)">
+      <mat-icon>delete</mat-icon>
+    </button>
+    <button mat-icon-button (click)="editNode(node)">
+      <mat-icon>edit</mat-icon>
+    </button>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Node Name</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
+    </mat-form-field>
+    <mat-form-field appearance="fill" >
+      <mat-label>Update Parent ID</mat-label>
+      <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
+    </mat-form-field>
   </mat-tree-node>
 </mat-tree>

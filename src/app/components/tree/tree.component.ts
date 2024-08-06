@@ -18,6 +18,7 @@ export class TodoItemNode {
   item: string = '';
   id?: number; // Ensure ID is included
   expandable: boolean = false; // Add the 'expandable' property
+  parent?: number; 
 }
 
 export class TodoItemFlatNode {
@@ -26,10 +27,10 @@ export class TodoItemFlatNode {
   expandable: boolean = false;
   id?: number; // Ensure ID is included
 }
-
+const apiUrl = 'http://localhost:1337/api/tree';
 @Injectable()
 export class ChecklistDatabase {
-  private apiUrl = 'http://localhost:1337/api/tree/get';
+
   dataChange = new BehaviorSubject<TodoItemNode[]>([]);
 
   constructor(private http: HttpClient) {
@@ -41,7 +42,7 @@ export class ChecklistDatabase {
   }
 
   initialize() {
-    this.http.get<any>(this.apiUrl).subscribe(
+    this.http.get<any>(`${apiUrl}/get`).subscribe(
       (response: any) => {
         try {
           const data = this.mapNodes(response);
@@ -101,7 +102,10 @@ export class TreeComponent {
   checklistSelection = new SelectionModel<TodoItemFlatNode>(true /* multiple */);
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
-
+  isInputFieldVisible: boolean = false;
+  toggleInputField() {
+    this.isInputFieldVisible = !this.isInputFieldVisible;
+  }
   constructor(private _database: ChecklistDatabase, private http: HttpClient) {
     this.treeFlattener = new MatTreeFlattener(
       this.transformer,
@@ -116,6 +120,11 @@ export class TreeComponent {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
     });
+  }
+
+  initialize() {
+    this.dataSource.data = [...this.dataSource.data];
+    this._database.dataChange.next(this.dataSource.data);
   }
 
   selectNode(node: TodoItemFlatNode) {
@@ -145,6 +154,10 @@ export class TreeComponent {
     return flatNode;
   };
 
+  toggle(toggle: boolean) {
+    return toggle;
+  }
+
   saveNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
     const parent = flatNode;
@@ -156,7 +169,7 @@ export class TreeComponent {
       parent: parentId
     };
 
-    this.http.post('http://localhost:1337/api/tree/create', payload, {
+    this.http.post(`${apiUrl}/create`, payload, {
       headers: { 'Content-Type': 'application/json' }
     }).subscribe(
       (response: any) => {
@@ -200,7 +213,7 @@ export class TreeComponent {
     // Update tree data
     updateChildren(this._database.data);
   }
-  
+
   getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
     const currentLevel = this.getLevel(node);
     if (currentLevel < 1) {
@@ -227,4 +240,86 @@ export class TreeComponent {
 
     nodes.forEach(traverseNodes);
   }
+
+  deleteNode(nodeId: TodoItemFlatNode) {
+    this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
+      (response: any) => {
+        console.log('Node deleted successfully:', response);
+        this.removeNodeFromTree(nodeId);
+      },
+      error => {
+        console.error('Error deleting node:', error.message);
+        console.error('Response body:', error.error);
+      }
+    );
+  }
+
+  removeNodeFromTree(nodeId: TodoItemFlatNode  ) {
+    const removeNode = (nodes: TodoItemNode[]): boolean => {
+      for (const node of nodes) {
+        const index = node.children.findIndex(child => child.id === Number(nodeId));
+        if (index !== -1) {
+          node.children.splice(index, 1);
+          if (node.children.length === 0) {
+            node.expandable = false;
+          }
+          this.dataSource.data = [...this.dataSource.data]; // Trigger update
+          return true;
+        }
+        if (removeNode(node.children)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Update tree data
+    removeNode(this._database.data);
+  }
+
+  editNode(node: TodoItemFlatNode) {
+    const flatNode = this.flatNodeMap.get(node);
+    if (!flatNode) {
+      console.error('FlatNode not found');
+      return;
+    }
+  
+    const parentId = this.nodeInput[node.id || ''];
+    const newValue = this.nodeInput[node.item] || '';
+  
+    // Ensure that the node ID and parent ID are defined
+    if (!node.id || parentId === undefined) {
+      console.error('Node ID or Parent ID is not defined');
+      return;
+    }
+  
+    const payload = {
+      node: newValue,
+      parent: parentId
+    };
+  
+    this.http.patch(`${apiUrl}/update/${node.id}`, payload, {
+      headers: { 'Content-Type': 'application/json' }
+    }).subscribe(
+      (response: any) => {
+        const nodeid = !node.id;
+        console.log('Node updated successfully:', response);
+        
+        this.initialize();
+        this.nodeInput[node?.item] = ''; // Clear the input field after saving
+        if (node.id) {
+          this.nodeInput[node.id] = ''; // Clear the parent input field after saving
+        }
+      },
+      error => {
+        console.log(payload.node);
+        console.log(payload.parent);
+        console.error('Error updating node:', error.message);
+        console.error('Response body:', error.error);
+      }
+    );
+  }
+  
+
+  
 }
