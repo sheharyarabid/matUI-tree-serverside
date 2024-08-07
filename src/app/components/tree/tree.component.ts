@@ -71,7 +71,6 @@ export class ChecklistDatabase {
       todoItemNode.children = (node.children || []).map(convertToTodoItemNode);
       return todoItemNode;
     };
-
     return nodes.map(convertToTodoItemNode);
   }
 }
