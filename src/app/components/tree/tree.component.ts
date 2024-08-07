@@ -103,9 +103,24 @@ export class TreeComponent {
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
   isInputFieldVisible: boolean = false;
+  availableIds: number[] = [];
+
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
   }
+
+  loadAvailableIds() {
+    // Replace with your actual API endpoint to fetch available IDs
+    this.http.get<number[]>(`${apiUrl}/ids`).subscribe(
+      (ids: number[]) => {
+        this.availableIds = ids;
+      },
+      error => {
+        console.error('Error fetching available IDs:', error);
+      }
+    );
+  }
+
   constructor(private _database: ChecklistDatabase, private http: HttpClient) {
     this.treeFlattener = new MatTreeFlattener(
       this.transformer,
@@ -125,6 +140,7 @@ export class TreeComponent {
   initialize() {
     this.dataSource.data = [...this.dataSource.data];
     this._database.dataChange.next(this.dataSource.data);
+    this.loadAvailableIds(); 
   }
 
   selectNode(node: TodoItemFlatNode) {
@@ -310,6 +326,7 @@ export class TreeComponent {
         if (node.id) {
           this.nodeInput[node.id] = ''; // Clear the parent input field after saving
         }
+        this._database.initialize();
       },
       error => {
         console.log(payload.node);
@@ -319,7 +336,7 @@ export class TreeComponent {
       }
     );
   }
-  
+  // this._database.dataChange.next(this.dataSource.data);
 
   
 }

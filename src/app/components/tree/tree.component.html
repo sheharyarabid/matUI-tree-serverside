@@ -22,11 +22,11 @@
     <button mat-icon-button (click)="editNode(node)">
       <mat-icon>edit</mat-icon>
     </button>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill"  *ngIf="!isInputFieldVisible">
       <mat-label>Update Node Name</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
     </mat-form-field>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
       <mat-label>Update Parent ID</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
     </mat-form-field>
@@ -51,11 +51,11 @@
     <button mat-button (click)="editNode(node)">
       <mat-icon>edit</mat-icon>
     </button>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill"  *ngIf="!isInputFieldVisible">
       <mat-label>Update Node Name</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
     </mat-form-field>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
       <mat-label>Update Parent ID</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
     </mat-form-field>
@@ -85,11 +85,11 @@
     <button mat-icon-button (click)="editNode(node)">
       <mat-icon>edit</mat-icon>
     </button>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill"  *ngIf="!isInputFieldVisible">
       <mat-label>Update Node Name</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
     </mat-form-field>
-    <mat-form-field appearance="fill" >
+    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
       <mat-label>Update Parent ID</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.id]" placeholder="Parent ID">
     </mat-form-field>
