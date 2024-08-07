@@ -13,7 +13,7 @@
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
     </mat-form-field>
 
-    <button mat-icon-button (click)="saveNode(node)">
+    <button mat-icon-button (click)="createNode(node)">
       <mat-icon>save</mat-icon>
     </button>
     <button mat-icon-button (click)="deleteNode(node.id)">
@@ -42,7 +42,7 @@
       <mat-label>Enter new node</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
     </mat-form-field>
-    <button mat-button (click)="saveNode(node)">
+    <button mat-button (click)="createNode(node)">
         <mat-icon>save</mat-icon>
       </button>
     <button mat-button (click)="deleteNode(node.id)">
@@ -76,7 +76,7 @@
       <mat-label>Enter new node</mat-label>
       <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
     </mat-form-field>
-    <button mat-icon-button (click)="saveNode(node)">
+    <button mat-icon-button (click)="createNode(node)">
       <mat-icon>save</mat-icon>
     </button>
     <button mat-icon-button (click)="deleteNode(node.id)">
