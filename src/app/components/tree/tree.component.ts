@@ -12,6 +12,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SelectionModel } from '@angular/cdk/collections';
 import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef } from '@angular/core';
 
 export class TodoItemNode {
   children: TodoItemNode[] = [];
@@ -47,6 +48,8 @@ export class ChecklistDatabase {
         try {
           const data = this.mapNodes(response);
           this.dataChange.next(data);
+          console.log('Data source:', this.dataChange.value);
+          
         } catch (error) {
           console.error('Error processing data:', error);
           this.dataChange.next([]);
@@ -109,14 +112,13 @@ export class TreeComponent {
     this.isInputFieldVisible = !this.isInputFieldVisible;
   }
 
-
-
-  constructor(private _database: ChecklistDatabase, private http: HttpClient) {
+  constructor(private _database: ChecklistDatabase, private http: HttpClient,  private cdr: ChangeDetectorRef ) {
     this.treeFlattener = new MatTreeFlattener(
       this.transformer,
       this.getLevel,
       this.isExpandable,
       this.getChildren,
+      
     );
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
@@ -158,10 +160,6 @@ export class TreeComponent {
     this.nestedNodeMap.set(node, flatNode);
     return flatNode;
   };
-
-  toggle(toggle: boolean) {
-    return toggle;
-  }
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
@@ -315,9 +313,12 @@ export class TreeComponent {
             if (node.id === response.id) {
               node.item = newValue; // Update the item value
               node.parent = response.parentId; // Update the parent ID with the response
-              this._database.dataChange.next(this.dataSource.data);             
-              
-              
+              this.dataSource.data = [...this.dataSource.data];  
+              this._database.dataChange.next([...this.dataSource.data]);
+              this.treeControl.dataNodes = [...this.treeControl.dataNodes];
+              console.log('Data source:', this.dataSource.data);
+              this.cdr.detectChanges();
+              this._database.initialize();
               return true;
             }
             if (updateNode(node.children)) {
@@ -340,5 +341,4 @@ export class TreeComponent {
       }
     );
   }
-  // this._database.dataChange.next(this.dataSource.data);
 }
