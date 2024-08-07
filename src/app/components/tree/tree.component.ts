@@ -63,6 +63,7 @@ export class ChecklistDatabase {
     const convertToTodoItemNode = (node: any): TodoItemNode => {
       const todoItemNode = new TodoItemNode();
       todoItemNode.item = node.node;
+      todoItemNode.parent = node.parent;
       todoItemNode.id = node.id; // Ensure ID is correctly mapped
       todoItemNode.children = (node.children || []).map(convertToTodoItemNode);
       return todoItemNode;
@@ -103,23 +104,12 @@ export class TreeComponent {
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
   isInputFieldVisible: boolean = false;
-  availableIds: number[] = [];
 
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
   }
 
-  loadAvailableIds() {
-    // Replace with your actual API endpoint to fetch available IDs
-    this.http.get<number[]>(`${apiUrl}/ids`).subscribe(
-      (ids: number[]) => {
-        this.availableIds = ids;
-      },
-      error => {
-        console.error('Error fetching available IDs:', error);
-      }
-    );
-  }
+
 
   constructor(private _database: ChecklistDatabase, private http: HttpClient) {
     this.treeFlattener = new MatTreeFlattener(
@@ -140,7 +130,6 @@ export class TreeComponent {
   initialize() {
     this.dataSource.data = [...this.dataSource.data];
     this._database.dataChange.next(this.dataSource.data);
-    this.loadAvailableIds();
   }
 
   selectNode(node: TodoItemFlatNode) {
@@ -299,38 +288,53 @@ export class TreeComponent {
       console.error('FlatNode not found');
       return;
     }
-
-    const parentId = this.nodeInput[node.id || ''];
+  
+    const parentId = Number(this.nodeInput[node.id || '']);
     const newValue = this.nodeInput[node.item] || '';
-
+  
     // Ensure that the node ID and parent ID are defined
-    if (!node.id || parentId === undefined) {
+    if (!node.id || isNaN(parentId)) {
       console.error('Node ID or Parent ID is not defined');
       return;
     }
-
+  
     const payload = {
       node: newValue,
       parent: parentId
     };
-
+  
     this.http.patch(`${apiUrl}/update/${node.id}`, payload, {
       headers: { 'Content-Type': 'application/json' }
     }).subscribe(
       (response: any) => {
-        const nodeid = !node.id;
         console.log('Node updated successfully:', response);
-
-        this.initialize();
-        this.nodeInput[node?.item] = ''; // Clear the input field after saving
+  
+        // Find the updated node in the tree and update its data
+        const updateNode = (nodes: TodoItemNode[]): boolean => {
+          for (const node of nodes) {
+            if (node.id === response.id) {
+              node.item = newValue; // Update the item value
+              node.parent = response.parentId; // Update the parent ID with the response
+              this._database.dataChange.next(this.dataSource.data);             
+              
+              
+              return true;
+            }
+            if (updateNode(node.children)) {
+              return true;
+            }
+          }
+          return false;
+        };
+  
+        // Update the tree data
+        updateNode(this._database.data);
+        this.nodeInput[node.item] = ''; // Clear the input field after saving
         if (node.id) {
           this.nodeInput[node.id] = ''; // Clear the parent input field after saving
         }
-
       },
       error => {
-        console.log(payload.node);
-        console.log(payload.parent);
         console.error('Error updating node:', error.message);
         console.error('Response body:', error.error);
       }
