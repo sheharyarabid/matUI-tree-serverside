@@ -13,6 +13,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
+import { MatSelectModule } from '@angular/material/select';
 
 export class TodoItemNode {
   children: TodoItemNode[] = [];
@@ -91,7 +92,8 @@ export class ChecklistDatabase {
     CdkTreeModule,
     ReactiveFormsModule,
     CommonModule,
-    HttpClientModule
+    HttpClientModule,
+    MatSelectModule
   ],
 })
 export class TreeComponent {
@@ -106,7 +108,6 @@ export class TreeComponent {
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
   isInputFieldVisible: boolean = false;
-
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
   }
@@ -121,7 +122,8 @@ export class TreeComponent {
     );
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-
+    
+    
     _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
@@ -131,6 +133,7 @@ export class TreeComponent {
   initialize() {
     this.dataSource.data = [...this.dataSource.data];
     this._database.dataChange.next(this.dataSource.data);
+    
   }
 
   selectNode(node: TodoItemFlatNode) {
@@ -157,6 +160,7 @@ export class TreeComponent {
     flatNode.id = node.id; // Map ID to flat node
     this.flatNodeMap.set(flatNode, node);
     this.nestedNodeMap.set(node, flatNode);
+   
     return flatNode;
   };
 
@@ -233,6 +237,8 @@ export class TreeComponent {
     return null;
   }
 
+ 
+
   // Initialize node input values
   initializeNodeInputs(nodes: TodoItemNode[]) {
     const traverseNodes = (node: TodoItemNode) => {
@@ -242,7 +248,79 @@ export class TreeComponent {
 
     nodes.forEach(traverseNodes);
   }
+  findNode(node: TodoItemNode, nodeId: string): TodoItemNode[] {
+    if (node.id === parseInt(nodeId)) {
+      return [node];
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        const foundNode = this.findNode(child, nodeId);
+        if (foundNode.length > 0) {
+          return foundNode;
+        }
+      }
+    }
+    return [];
+  }
+  
+  findParentId(nodeId: any): void {
+    const node = this.dataSource.data.flatMap(n => this.findNode(n, nodeId));
+    const parentId = node.length > 0 ? node[0].parent : null;
+    console.log('Parent ID:', parentId);
+  }
+  
+  getChildIds(parentId: number): number[] {
+    const findChildren = (nodes: TodoItemNode[], parentId: number): number[] => {
+      for (const node of nodes) {
+        if (node.id === parentId) {
+          // Return the IDs of the children of the found parent node
+          return node.children.map(child => child.id || -1).filter(id => id !== -1);
+        }
+        if (node.children) {
+          const childIds = findChildren(node.children, parentId);
+          if (childIds.length > 0) {
+            return childIds;
+          }
+        }
+      }
+      return [];
+    };
 
+    return findChildren(this.dataSource.data, parentId);
+  }
+  getAllNodeIds(nodeID: any): number[] {
+    
+    const collectNodeIds = (nodes: TodoItemNode[], ids: number[]): void => {
+      for (const node of nodes) {
+        if (node.id !== undefined) {
+          ids.push(node.id);
+        }
+        if (node.children) {
+          collectNodeIds(node.children, ids);
+        }
+      }
+    };
+
+    const ids: number[] = [];
+
+    collectNodeIds(this.dataSource.data, ids);
+    console.log('Node IDs:', ids);
+    const parentId : any = this.findParentId(nodeID);
+    ids.splice(parentId, 1); //parent node removed from array of selectors
+    const nodeIndex = ids.indexOf(nodeID);
+    if (nodeIndex !== -1) {
+      ids.splice(nodeIndex, 1); //current node removed from array of selectors
+    }
+   
+    this.getChildIds(nodeID).forEach((childId) => {
+    ids.splice(ids.indexOf(childId), this.getChildIds(nodeID).length);
+    console.log('Child ID no:', this.getChildIds(nodeID).length);
+    }); //child removed from array of selectors
+    
+    console.log('Node IDs:', ids);
+    return ids;
+  }
+  
   deleteNode(nodeId: TodoItemFlatNode) {
     this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
       (response: any) => {
@@ -285,7 +363,6 @@ export class TreeComponent {
       console.error('FlatNode not found');
       return;
     }
-  
     const parentId = Number(this.nodeInput[node.id || '']);
     const newValue = this.nodeInput[node.item] || '';
   
