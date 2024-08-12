@@ -14,6 +14,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
+import { RouterTestingHarness } from '@angular/router/testing';
 
 export class TodoItemNode {
   children: TodoItemNode[] = [];
@@ -50,7 +51,7 @@ export class ChecklistDatabase {
           const data = this.mapNodes(response);
           this.dataChange.next(data);
           console.log('Data source:', this.dataChange.value);
-          
+
         } catch (error) {
           console.error('Error processing data:', error);
           this.dataChange.next([]);
@@ -108,22 +109,24 @@ export class TreeComponent {
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
   isInputFieldVisible: boolean = false;
+  list!: number[];
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
+    this.nodeInput = {}; // Clear the input field when toggling
   }
 
-  constructor(private _database: ChecklistDatabase, private http: HttpClient,  private cdr: ChangeDetectorRef ) {
+  constructor(private _database: ChecklistDatabase, private http: HttpClient, private cdr: ChangeDetectorRef) {
     this.treeFlattener = new MatTreeFlattener(
       this.transformer,
       this.getLevel,
       this.isExpandable,
       this.getChildren,
-      
+
     );
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-    
-    
+
+
     _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
@@ -133,11 +136,10 @@ export class TreeComponent {
   initialize() {
     this.dataSource.data = [...this.dataSource.data];
     this._database.dataChange.next(this.dataSource.data);
-    
-  }
+    this.dataSource.data.forEach(node => {
+      this.nodeInput[node.item] = ''; // Initialize input for each node
+    });
 
-  selectNode(node: TodoItemFlatNode) {
-    this.selectedNode = node;
   }
 
   getLevel = (node: TodoItemFlatNode) => node.level;
@@ -160,9 +162,10 @@ export class TreeComponent {
     flatNode.id = node.id; // Map ID to flat node
     this.flatNodeMap.set(flatNode, node);
     this.nestedNodeMap.set(node, flatNode);
-   
     return flatNode;
   };
+
+
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
@@ -187,8 +190,10 @@ export class TreeComponent {
           expandable: false
         };
 
-        // Update the tree data
-        this.addNodeToTree(parentId, newNode);
+        // Update the tree data (client side optimized)
+        // this.addNodeToTree(parentId, newNode);
+
+        this._database.initialize();
         this.nodeInput[node.item] = ''; // Clear the input field after saving
       },
       error => {
@@ -198,27 +203,6 @@ export class TreeComponent {
     );
   }
 
-  addNodeToTree(parentId: number | undefined, newNode: TodoItemNode) {
-    const updateChildren = (nodes: TodoItemNode[]): boolean => {
-      for (const node of nodes) {
-        if (node.id === parentId) {
-          node.children.push(newNode);
-          // Ensure the parent node is marked as expandable
-          node.expandable = true;
-          this.dataSource.data = [...this.dataSource.data]; // Trigger update
-          this.treeControl.expand(this.treeControl.dataNodes.find(n => n.id === parentId) || this.treeControl.dataNodes[0]);
-          return true;
-        }
-        if (updateChildren(node.children)) {
-          return true;
-        }
-      }
-      return false;
-    };
-
-    // Update tree data
-    updateChildren(this._database.data);
-  }
 
   getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
     const currentLevel = this.getLevel(node);
@@ -237,8 +221,6 @@ export class TreeComponent {
     return null;
   }
 
- 
-
   // Initialize node input values
   initializeNodeInputs(nodes: TodoItemNode[]) {
     const traverseNodes = (node: TodoItemNode) => {
@@ -248,84 +230,14 @@ export class TreeComponent {
 
     nodes.forEach(traverseNodes);
   }
-  findNode(node: TodoItemNode, nodeId: string): TodoItemNode[] {
-    if (node.id === parseInt(nodeId)) {
-      return [node];
-    }
-    if (node.children) {
-      for (const child of node.children) {
-        const foundNode = this.findNode(child, nodeId);
-        if (foundNode.length > 0) {
-          return foundNode;
-        }
-      }
-    }
-    return [];
-  }
-  
-  findParentId(nodeId: any): void {
-    const node = this.dataSource.data.flatMap(n => this.findNode(n, nodeId));
-    const parentId = node.length > 0 ? node[0].parent : null;
-    console.log('Parent ID:', parentId);
-  }
-  
-  getChildIds(parentId: number): number[] {
-    const findChildren = (nodes: TodoItemNode[], parentId: number): number[] => {
-      for (const node of nodes) {
-        if (node.id === parentId) {
-          // Return the IDs of the children of the found parent node
-          return node.children.map(child => child.id || -1).filter(id => id !== -1);
-        }
-        if (node.children) {
-          const childIds = findChildren(node.children, parentId);
-          if (childIds.length > 0) {
-            return childIds;
-          }
-        }
-      }
-      return [];
-    };
 
-    return findChildren(this.dataSource.data, parentId);
-  }
-  getAllNodeIds(nodeID: any): number[] {
-    
-    const collectNodeIds = (nodes: TodoItemNode[], ids: number[]): void => {
-      for (const node of nodes) {
-        if (node.id !== undefined) {
-          ids.push(node.id);
-        }
-        if (node.children) {
-          collectNodeIds(node.children, ids);
-        }
-      }
-    };
 
-    const ids: number[] = [];
-
-    collectNodeIds(this.dataSource.data, ids);
-    console.log('Node IDs:', ids);
-    const parentId : any = this.findParentId(nodeID);
-    ids.splice(parentId, 1); //parent node removed from array of selectors
-    const nodeIndex = ids.indexOf(nodeID);
-    if (nodeIndex !== -1) {
-      ids.splice(nodeIndex, 1); //current node removed from array of selectors
-    }
-   
-    this.getChildIds(nodeID).forEach((childId) => {
-    ids.splice(ids.indexOf(childId), this.getChildIds(nodeID).length);
-    console.log('Child ID no:', this.getChildIds(nodeID).length);
-    }); //child removed from array of selectors
-    
-    console.log('Node IDs:', ids);
-    return ids;
-  }
-  
   deleteNode(nodeId: TodoItemFlatNode) {
     this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
       (response: any) => {
         console.log('Node deleted successfully:', response);
-        this.removeNodeFromTree(nodeId);
+        // this.removeNodeFromTree(nodeId); //client side datasource
+        this._database.initialize();
       },
       error => {
         console.error('Error deleting node:', error.message);
@@ -334,27 +246,16 @@ export class TreeComponent {
     );
   }
 
-  removeNodeFromTree(nodeId: TodoItemFlatNode) {
-    const removeNode = (nodes: TodoItemNode[]): boolean => {
-      for (const node of nodes) {
-        const index = node.children.findIndex(child => child.id === Number(nodeId));
-        if (index !== -1) {
-          node.children.splice(index, 1);
-          if (node.children.length === 0) {
-            node.expandable = false;
-          }
-          this.dataSource.data = [...this.dataSource.data]; // Trigger update
-          return true;
-        }
-        if (removeNode(node.children)) {
-          return true;
-        }
-      }
-      return false;
-    };
+  getValidParents(node: TodoItemFlatNode): TodoItemFlatNode[] {
+    const descendants = this.treeControl.getDescendants(node);
 
-    // Update tree data
-    removeNode(this._database.data);
+    // Get the parent of the given node.
+    const parent = this.getParentNode(node);
+
+    // Filter out nodes that are either the node itself, its parent, or any of its descendants.
+    return this.treeControl.dataNodes.filter(
+      (n) => !descendants.includes(n) && n !== node && n !== parent
+    );
   }
 
   editNode(node: TodoItemFlatNode) {
@@ -363,18 +264,40 @@ export class TreeComponent {
       console.error('FlatNode not found');
       return;
     }
-    const parentId = Number(this.nodeInput[node.id || '']);
-    const newValue = this.nodeInput[node.item] || '';
   
-    // Ensure that the node ID and parent ID are defined
-    if (!node.id || isNaN(parentId)) {
-      console.error('Node ID or Parent ID is not defined');
+    // Get the new parent name from the input
+    let parentName = '';
+  
+    if (typeof this.nodeInput['parent'] === 'object' && this.nodeInput['parent'] !== null) {
+      parentName = (this.nodeInput['parent'] as TodoItemFlatNode).item || '';
+    } else if (typeof this.nodeInput['parent'] === 'string') {
+      parentName = this.nodeInput['parent'];
+    }
+    
+    console.log('Parent name:', parentName);
+  
+    // Find the parent node by its name
+    
+    const newParentNode = this._database.data.find(node => node.item === 'root');
+    if (!newParentNode) {
+      console.error('Parent node not found');
+      return;
+    }
+    console.log('New parent node:', newParentNode);
+    const parentId = newParentNode?.id ?? null; // Get the ID of the new parent
+    console.log('Parent ID:', parentId);
+  
+    if (!parentId) {
+      console.error('Parent ID is not defined');
       return;
     }
   
+    const newValue = this.nodeInput[node.item] || '';
+    console.log('New value:', newValue);
+    
     const payload = {
       node: newValue,
-      parent: parentId
+      parent: parentId // Use the ID of the new parent
     };
   
     this.http.patch(`${apiUrl}/update/${node.id}`, payload, {
@@ -389,7 +312,7 @@ export class TreeComponent {
             if (node.id === response.id) {
               node.item = newValue; // Update the item value
               node.parent = response.parentId; // Update the parent ID with the response
-              this.dataSource.data = [...this.dataSource.data];  
+              this.dataSource.data = [...this.dataSource.data];
               this._database.dataChange.next([...this.dataSource.data]);
               this.treeControl.dataNodes = [...this.treeControl.dataNodes];
               console.log('Data source:', this.dataSource.data);
@@ -408,7 +331,7 @@ export class TreeComponent {
         updateNode(this._database.data);
         this.nodeInput[node.item] = ''; // Clear the input field after saving
         if (node.id) {
-          this.nodeInput[node.id] = ''; // Clear the parent input field after saving
+          this.nodeInput['parent'] = ''; // Clear the parent input field after saving
         }
       },
       error => {
@@ -417,4 +340,6 @@ export class TreeComponent {
       }
     );
   }
+  
+
 }
