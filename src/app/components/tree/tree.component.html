@@ -1,106 +1,120 @@
-<mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-  <!-- Node definition with input fields -->
-  <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-    <button mat-icon-button [hidden]="!node.expandable">
-      <mat-icon>expand_more</mat-icon>
-    </button>
-    {{node.item}}
-    <button mat-icon-button (click)="toggleInputField()">
-      <mat-icon>add</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-      <mat-label>Enter new node</mat-label>
-      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-    </mat-form-field>
-    <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
-      <mat-icon>save</mat-icon>
-    </button>
-    <button mat-icon-button (click)="deleteNode(node.id)">
-      <mat-icon>delete</mat-icon>
-    </button>
-    <button mat-icon-button (click)="editNode(node)">
-      <mat-icon>edit</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-      <mat-label>Update Node Name</mat-label>
-      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
-    </mat-form-field>
-     <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-      <mat-label>Select a number</mat-label>
-      <mat-select [(value)]="nodeInput['parent']">
-         <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </mat-tree-node>
-
-  <!-- Node definition for nodes without content -->
-  <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
-    <button mat-icon-button [hidden]="!node.expandable"></button>
-    <button mat-icon-button (click)="toggleInputField()">
-      <mat-icon>add</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-      <mat-label>Enter new node</mat-label>
-      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-    </mat-form-field>
-    <button mat-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <mat-form-field appearance="fill">
+    <mat-label>Filter</mat-label>
+    <input matInput [(ngModel)]="filterKey" placeholder="Enter Keyword">
+  </mat-form-field>
+  <button mat-icon-button (click)="getDatabyFilter(filterKey)">
+    <mat-icon>search</mat-icon>
+  </button>
+  <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+    <!-- Node definition with input fields -->
+    <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+      <button mat-icon-button [hidden]="!node.expandable">
+        <mat-icon>expand_more</mat-icon>
+      </button>
+      {{node.item}}
+      <button mat-icon-button (click)="toggleInputField()">
+        <mat-icon>add</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+        <mat-label>Enter new node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+      </mat-form-field>
+      <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
         <mat-icon>save</mat-icon>
       </button>
-    <button mat-button (click)="deleteNode(node.id)">
-      <mat-icon>delete</mat-icon>
-    </button>
-    <button mat-button (click)="editNode(node)">
-      <mat-icon>edit</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-      <mat-label>Update Node Name</mat-label>
-      <input matInput [(ngModel)]="nodeInput['node']" placeholder="Node Name">
-    </mat-form-field>
-     <mat-form-field appearance="fill"*ngIf="!isInputFieldVisible">
-      <mat-label>Select a number</mat-label>
-      <mat-select [(value)]="nodeInput['parent']">
-         <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
-      </mat-select>
-    </mat-form-field>
-  </mat-tree-node>
-
-  <!-- Node definition for expandable nodes -->
-  <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-    <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.item" [disabled]="!node.expandable">
-      <mat-icon class="mat-icon-rtl-mirror">
-        {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-      </mat-icon>
-    </button>
-    {{node.item}}
-    <button mat-icon-button (click)="toggleInputField()">
-      <mat-icon>add</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-      <mat-label>Enter new node</mat-label>
-      <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-    </mat-form-field>
-    <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
-      <mat-icon>save</mat-icon>
-    </button>
-    <button mat-icon-button (click)="deleteNode(node.id)">
-      <mat-icon>delete</mat-icon>
-    </button>
-    <button mat-icon-button (click)="editNode(node)">
-      <mat-icon>edit</mat-icon>
-    </button>
-    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible" >
-      <mat-label>Update Node Name</mat-label>
-      <input matInput   [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
-    </mat-form-field>
-    
-    <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-  <mat-label>Select a parent node</mat-label>
-  <mat-select [(value)]="nodeInput['parent']">
-    <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent.item">{{parent.item}}</mat-option>
-  </mat-select>
-</mat-form-field>
-  </mat-tree-node>
-</mat-tree>
-
-
-<!-- getAllNodeIds(node.id) -->
+      <button mat-icon-button (click)="deleteNode(node.id)">
+        <mat-icon>delete</mat-icon>
+      </button>
+      <button mat-icon-button (click)="editNode(node)">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
+        <mat-label>Update Node Name</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
+      </mat-form-field>
+      <mat-form-field appearance="fill"*ngIf="!isInputFieldVisible">
+        <mat-label>Select new parent node</mat-label>
+        <mat-select [(ngModel)]="updatedParent">
+           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-tree-node>
+  
+    <!-- Node definition for nodes without content -->
+    <mat-tree-node *matTreeNodeDef="let node; when: hasNoContent" matTreeNodePadding>
+      <button mat-icon-button [hidden]="!node.expandable"></button>
+      <button mat-icon-button (click)="toggleInputField()">
+        <mat-icon>add</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+        <mat-label>Enter new node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+      </mat-form-field>
+      <button mat-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
+          <mat-icon>save</mat-icon>
+        </button>
+      <button mat-button (click)="deleteNode(node.id)">
+        <mat-icon>delete</mat-icon>
+      </button>
+      <button mat-button (click)="editNode(node)">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
+        <mat-label>Update Node Name</mat-label>
+        <input matInput [(ngModel)]="nodeInput['node']" placeholder="Node Name">
+      </mat-form-field>
+       <mat-form-field appearance="fill"*ngIf="!isInputFieldVisible">
+        <mat-label>Select new parent node</mat-label>
+        <mat-select [(ngModel)]="updatedParent">
+           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-tree-node>
+  
+    <!-- Node definition for expandable nodes -->
+    <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+      <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.item" [disabled]="!node.expandable">
+        <mat-icon class="mat-icon-rtl-mirror">
+          {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+        </mat-icon>
+      </button>
+      {{node.item}}
+      <button mat-icon-button (click)="toggleInputField()">
+        <mat-icon>add</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+        <mat-label>Enter new node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+      </mat-form-field>
+      <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
+        <mat-icon>save</mat-icon>
+      </button>
+      <button mat-icon-button (click)="deleteNode(node.id)">
+        <mat-icon>delete</mat-icon>
+      </button>
+      <button mat-icon-button (click)="editNode(node)">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible" >
+        <mat-label>Update Node Name</mat-label>
+        <input matInput   [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
+      </mat-form-field>
+  
+      <mat-form-field appearance="fill"*ngIf="!isInputFieldVisible">
+        <mat-label>Select new parent node</mat-label>
+        <mat-select [(ngModel)]="updatedParent">
+           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </mat-tree-node>
+  </mat-tree>
+</body>
+</html>

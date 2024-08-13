@@ -14,8 +14,6 @@ import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
-import { RouterTestingHarness } from '@angular/router/testing';
-
 export class TodoItemNode {
   children: TodoItemNode[] = [];
   item: string = '';
@@ -45,6 +43,7 @@ export class ChecklistDatabase {
   }
 
   initialize() {
+    // this.http.get<any>(`${apiUrl}/get/?filters=i`).subscribe(
     this.http.get<any>(`${apiUrl}/get`).subscribe(
       (response: any) => {
         try {
@@ -101,7 +100,7 @@ export class TreeComponent {
   flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
   nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
   selectedParent: TodoItemFlatNode | null = null;
-  nodeInput: { [key: string]: string } = {}; // Store input values for each node
+  nodeInput: { [key: string | number]: string } = {}; // Store input values for each node
   treeControl: FlatTreeControl<TodoItemFlatNode>;
   treeFlattener: MatTreeFlattener<TodoItemNode, TodoItemFlatNode>;
   dataSource: MatTreeFlatDataSource<TodoItemNode, TodoItemFlatNode>;
@@ -109,7 +108,36 @@ export class TreeComponent {
   editingNode: TodoItemFlatNode | null = null;
   selectedNode: TodoItemFlatNode | null = null;
   isInputFieldVisible: boolean = false;
-  list!: number[];
+  updatedParent!: TodoItemFlatNode;
+  filterKey: string = '';
+  mapNodes(nodes: any[]): TodoItemNode[] {
+    const nodeMap = new Map<number, TodoItemNode>();
+  
+    // First pass: Create all nodes and map them by ID
+    nodes.forEach(node => {
+      const todoItemNode = new TodoItemNode();
+      todoItemNode.item = node.node;
+      todoItemNode.id = node.id;
+      todoItemNode.parent = node.parent?.id; // Store the parent ID
+      todoItemNode.children = [];
+      if (todoItemNode?.id) {
+        nodeMap.set(todoItemNode.id, todoItemNode);
+      }
+    });
+  
+    // Second pass: Assign children to their parents
+    nodeMap.forEach(node => {
+      if (node.parent) {
+        const parentNode = nodeMap.get(node.parent);
+        if (parentNode) {
+          parentNode.children.push(node);
+        }
+      }
+    });
+  
+    // Return only root nodes (nodes without parents)
+    return Array.from(nodeMap.values()).filter(node => !node.parent);
+  }
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
     this.nodeInput = {}; // Clear the input field when toggling
@@ -121,13 +149,11 @@ export class TreeComponent {
       this.getLevel,
       this.isExpandable,
       this.getChildren,
-
     );
+
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-
-
-    _database.dataChange.subscribe(data => {
+   _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
     });
@@ -141,6 +167,31 @@ export class TreeComponent {
     });
 
   }
+
+  getDatabyFilter(filterKey: string) {
+    if (!filterKey) return; // Exit if no filter key is provided
+    
+    this.http.get<any>(`${apiUrl}/getfilter?filter=${filterKey}`).subscribe(
+      (response: any) => {
+        try {
+          const nodes = response.nodes || [];
+          const data = this.mapNodes(nodes); // Map the response to TodoItemNode[]
+          this.dataSource.data = data;
+          this.initializeNodeInputs(data); // Initialize input values for each node
+          this.filterKey = ''; // Clear the filter key after applying the filter
+          this.cdr.detectChanges(); // Trigger change detection
+        } catch (error) {
+          console.error('Error processing data:', error);
+          this.dataSource.data = [];
+        }
+      },
+      error => {
+        console.error('Error fetching data:', error);
+        this.dataSource.data = [];
+      }
+    );
+  }
+  
 
   getLevel = (node: TodoItemFlatNode) => node.level;
 
@@ -189,9 +240,6 @@ export class TreeComponent {
           children: [],
           expandable: false
         };
-
-        // Update the tree data (client side optimized)
-        // this.addNodeToTree(parentId, newNode);
 
         this._database.initialize();
         this.nodeInput[node.item] = ''; // Clear the input field after saving
@@ -248,15 +296,15 @@ export class TreeComponent {
 
   getValidParents(node: TodoItemFlatNode): TodoItemFlatNode[] {
     const descendants = this.treeControl.getDescendants(node);
-
     // Get the parent of the given node.
     const parent = this.getParentNode(node);
-
     // Filter out nodes that are either the node itself, its parent, or any of its descendants.
-    return this.treeControl.dataNodes.filter(
+    const validNodesList = this.treeControl.dataNodes.filter(
       (n) => !descendants.includes(n) && n !== node && n !== parent
     );
+    return validNodesList;
   }
+
 
   editNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
@@ -264,75 +312,22 @@ export class TreeComponent {
       console.error('FlatNode not found');
       return;
     }
-  
-    // Get the new parent name from the input
-    let parentName = '';
-  
-    if (typeof this.nodeInput['parent'] === 'object' && this.nodeInput['parent'] !== null) {
-      parentName = (this.nodeInput['parent'] as TodoItemFlatNode).item || '';
-    } else if (typeof this.nodeInput['parent'] === 'string') {
-      parentName = this.nodeInput['parent'];
-    }
-    
-    console.log('Parent name:', parentName);
-  
-    // Find the parent node by its name
-    
-    const newParentNode = this._database.data.find(node => node.item === 'root');
-    if (!newParentNode) {
-      console.error('Parent node not found');
-      return;
-    }
-    console.log('New parent node:', newParentNode);
-    const parentId = newParentNode?.id ?? null; // Get the ID of the new parent
-    console.log('Parent ID:', parentId);
-  
-    if (!parentId) {
-      console.error('Parent ID is not defined');
-      return;
-    }
-  
+
+    let updateNodeParent = this.updatedParent;
     const newValue = this.nodeInput[node.item] || '';
     console.log('New value:', newValue);
-    
+
     const payload = {
-      node: newValue,
-      parent: parentId // Use the ID of the new parent
+      node: newValue || flatNode.item, // Use the input value if available, otherwise use the existing value
+      parent: updateNodeParent ? updateNodeParent.id : flatNode.parent // Use the ID of the new parent if available, otherwise use the existing parent ID
     };
-  
+
     this.http.patch(`${apiUrl}/update/${node.id}`, payload, {
       headers: { 'Content-Type': 'application/json' }
     }).subscribe(
       (response: any) => {
         console.log('Node updated successfully:', response);
-  
-        // Find the updated node in the tree and update its data
-        const updateNode = (nodes: TodoItemNode[]): boolean => {
-          for (const node of nodes) {
-            if (node.id === response.id) {
-              node.item = newValue; // Update the item value
-              node.parent = response.parentId; // Update the parent ID with the response
-              this.dataSource.data = [...this.dataSource.data];
-              this._database.dataChange.next([...this.dataSource.data]);
-              this.treeControl.dataNodes = [...this.treeControl.dataNodes];
-              console.log('Data source:', this.dataSource.data);
-              this.cdr.detectChanges();
-              this._database.initialize();
-              return true;
-            }
-            if (updateNode(node.children)) {
-              return true;
-            }
-          }
-          return false;
-        };
-  
-        // Update the tree data
-        updateNode(this._database.data);
-        this.nodeInput[node.item] = ''; // Clear the input field after saving
-        if (node.id) {
-          this.nodeInput['parent'] = ''; // Clear the parent input field after saving
-        }
+        this._database.initialize();
       },
       error => {
         console.error('Error updating node:', error.message);
@@ -340,6 +335,4 @@ export class TreeComponent {
       }
     );
   }
-  
-
 }
