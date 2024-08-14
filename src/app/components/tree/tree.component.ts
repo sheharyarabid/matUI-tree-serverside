@@ -14,12 +14,14 @@ import { HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef } from '@angular/core';
 import { MatSelectModule } from '@angular/material/select';
+
 export class TodoItemNode {
   children: TodoItemNode[] = [];
   item: string = '';
   id?: number; // Ensure ID is included
   expandable: boolean = false; // Add the 'expandable' property
   parent?: number;
+  childrenLength?: number;
 }
 
 export class TodoItemFlatNode {
@@ -27,13 +29,13 @@ export class TodoItemFlatNode {
   level: number = 0;
   expandable: boolean = false;
   id?: number; // Ensure ID is included
+  
 }
 const apiUrl = 'http://localhost:1337/api/tree';
 @Injectable()
 export class ChecklistDatabase {
 
   dataChange = new BehaviorSubject<TodoItemNode[]>([]);
-
   constructor(private http: HttpClient) {
     this.initialize();
   }
@@ -43,14 +45,14 @@ export class ChecklistDatabase {
   }
 
   initialize() {
-    // this.http.get<any>(`${apiUrl}/get/?filters=i`).subscribe(
-    this.http.get<any>(`${apiUrl}/get`).subscribe(
+    this.http.get<any>(`${apiUrl}/getfilter/?parentId=`).subscribe(
       (response: any) => {
         try {
-          const data = this.mapNodes(response);
+          // const data = this.mapNodes(response);
+          // const data = response.nodes;
+          const data = this.mapNodes(response.nodes);
           this.dataChange.next(data);
-          console.log('Data source:', this.dataChange.value);
-
+          // console.log('Data source:', this.dataChange.value);
         } catch (error) {
           console.error('Error processing data:', error);
           this.dataChange.next([]);
@@ -70,8 +72,11 @@ export class ChecklistDatabase {
       todoItemNode.parent = node.parent;
       todoItemNode.id = node.id; // Ensure ID is correctly mapped
       todoItemNode.children = (node.children || []).map(convertToTodoItemNode);
+      todoItemNode.childrenLength = node.childrenLength;
+      todoItemNode.expandable = false; // Set 'expandable' based on children length
       return todoItemNode;
     };
+
     return nodes.map(convertToTodoItemNode);
   }
 }
@@ -110,9 +115,10 @@ export class TreeComponent {
   isInputFieldVisible: boolean = false;
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
-  mapNodes(nodes: any[]): TodoItemNode[] {
+  key: string = '';
+
+  mapNodes(nodes: any[]): TodoItemNode[] { //works diff for bth..
     const nodeMap = new Map<number, TodoItemNode>();
-  
     // First pass: Create all nodes and map them by ID
     nodes.forEach(node => {
       const todoItemNode = new TodoItemNode();
@@ -124,7 +130,7 @@ export class TreeComponent {
         nodeMap.set(todoItemNode.id, todoItemNode);
       }
     });
-  
+
     // Second pass: Assign children to their parents
     nodeMap.forEach(node => {
       if (node.parent) {
@@ -134,7 +140,7 @@ export class TreeComponent {
         }
       }
     });
-  
+
     // Return only root nodes (nodes without parents)
     return Array.from(nodeMap.values()).filter(node => !node.parent);
   }
@@ -153,7 +159,7 @@ export class TreeComponent {
 
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-   _database.dataChange.subscribe(data => {
+    _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
     });
@@ -167,11 +173,43 @@ export class TreeComponent {
     });
 
   }
-
+  getDatabypage(node : TodoItemFlatNode) {
+    const key = node.id;
+    if (!key) {
+      this._database.initialize();
+    }
+    else {
+      this.http.get<any>(`http://localhost:1337/api/tree/getfilter/?parentId=${key}`).subscribe(
+        (response: any) => {
+          try {
+            const nodes = response.nodes || [];
+            const data = this._database.mapNodes(nodes); // Map the response to TodoItemNode[]
+            let getNode = this.flatNodeMap.get(node);
+            console.log(getNode);
+            getNode?.children.push(nodes);
+            this.dataSource.data = data;
+            this.initializeNodeInputs(data); // Initialize input values for each node
+           
+            
+          } catch (error) {
+            console.error('Error processing data:', error);
+            this.dataSource.data = [];
+          }
+         
+        },
+        error => {
+          console.error('Error fetching data:', error);
+          this.dataSource.data = [];
+        }
+      );
+    }
+ 
+  }
   getDatabyFilter(filterKey: string) {
-    if (!filterKey) return; // Exit if no filter key is provided
-    
-    this.http.get<any>(`${apiUrl}/getfilter?filter=${filterKey}`).subscribe(
+    if (!filterKey)
+      return; // Exit if no filter key is provided
+
+    this.http.get<any>(`${apiUrl}/getfilter/?filter=${filterKey}`).subscribe(
       (response: any) => {
         try {
           const nodes = response.nodes || [];
@@ -179,7 +217,6 @@ export class TreeComponent {
           this.dataSource.data = data;
           this.initializeNodeInputs(data); // Initialize input values for each node
           this.filterKey = ''; // Clear the filter key after applying the filter
-          this.cdr.detectChanges(); // Trigger change detection
         } catch (error) {
           console.error('Error processing data:', error);
           this.dataSource.data = [];
@@ -191,7 +228,6 @@ export class TreeComponent {
       }
     );
   }
-  
 
   getLevel = (node: TodoItemFlatNode) => node.level;
 
@@ -209,14 +245,18 @@ export class TreeComponent {
       existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
     flatNode.item = node.item;
     flatNode.level = level;
-    flatNode.expandable = !!node.children?.length;
+    if (node.childrenLength === 0) {
+      flatNode.expandable = false
+    }
+    else {
+      flatNode.expandable = true;
+    }
+
     flatNode.id = node.id; // Map ID to flat node
     this.flatNodeMap.set(flatNode, node);
     this.nestedNodeMap.set(node, flatNode);
     return flatNode;
   };
-
-
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
@@ -233,7 +273,7 @@ export class TreeComponent {
       headers: { 'Content-Type': 'application/json' }
     }).subscribe(
       (response: any) => {
-        console.log('Node saved successfully:', response);
+        // console.log('Node saved successfully:', response);
         const newNode: TodoItemNode = {
           item: newValue,
           id: response.id, // Assuming the response returns the new node ID
@@ -250,7 +290,6 @@ export class TreeComponent {
       }
     );
   }
-
 
   getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
     const currentLevel = this.getLevel(node);
@@ -283,7 +322,7 @@ export class TreeComponent {
   deleteNode(nodeId: TodoItemFlatNode) {
     this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
       (response: any) => {
-        console.log('Node deleted successfully:', response);
+        // console.log('Node deleted successfully:', response);
         // this.removeNodeFromTree(nodeId); //client side datasource
         this._database.initialize();
       },
@@ -305,7 +344,6 @@ export class TreeComponent {
     return validNodesList;
   }
 
-
   editNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
     if (!flatNode) {
@@ -315,7 +353,7 @@ export class TreeComponent {
 
     let updateNodeParent = this.updatedParent;
     const newValue = this.nodeInput[node.item] || '';
-    console.log('New value:', newValue);
+    // console.log('New value:', newValue);
 
     const payload = {
       node: newValue || flatNode.item, // Use the input value if available, otherwise use the existing value
