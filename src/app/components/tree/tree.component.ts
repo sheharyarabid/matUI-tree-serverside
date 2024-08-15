@@ -19,7 +19,7 @@ export class TodoItemNode {
   children: TodoItemNode[] = [];
   item: string = '';
   id?: number; // Ensure ID is included
-  expandable: boolean = false; // Add the 'expandable' property
+  expandable: boolean = true; // Add the 'expandable' property
   parent?: number;
   childrenLength?: number;
 }
@@ -27,7 +27,7 @@ export class TodoItemNode {
 export class TodoItemFlatNode {
   item: string = '';
   level: number = 0;
-  expandable: boolean = false;
+  expandable: boolean = true;
   id?: number; // Ensure ID is included
   
 }

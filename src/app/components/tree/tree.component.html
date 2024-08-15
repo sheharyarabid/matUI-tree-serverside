@@ -15,15 +15,6 @@
     <mat-icon>search</mat-icon>
   </button>
   
-  <!-- Input field and button to get children by parentID -->
-  <!-- <mat-form-field appearance="fill">
-    <mat-label>Get children by parentID</mat-label>
-    <input matInput [(ngModel)]="key" placeholder="Enter Keyword">
-  </mat-form-field>
-  <button mat-icon-button (click)="getDatabypage(node.)">
-    <mat-icon>search</mat-icon>
-  </button> -->
-
   <!-- Angular Material Tree -->
   <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
     
@@ -39,10 +30,6 @@
         <mat-icon>add</mat-icon>
       </button>
       <!-- Input field for adding a new node -->
-      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-        <mat-label>Enter new node</mat-label>
-        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-      </mat-form-field>
       <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
         <mat-icon>save</mat-icon>
       </button>
@@ -50,7 +37,11 @@
       <button mat-icon-button (click)="deleteNode(node.id)">
         <mat-icon>delete</mat-icon>
       </button>
-      <button mat-icon-button (click)="editNode(node)">
+      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+        <mat-label>enter new child node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
+      </mat-form-field>
+      <button mat-icon-button (click)="editNode(node)" *ngIf="!isInputFieldVisible">
         <mat-icon>edit</mat-icon>
       </button>
       <!-- Input field and select dropdown for updating node details -->
@@ -75,8 +66,8 @@
       </button>
       <!-- Input field for adding a new node -->
       <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-        <mat-label>Enter new node</mat-label>
-        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
+        <mat-label>enter new child node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
       </mat-form-field>
       <button mat-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
           <mat-icon>save</mat-icon>
@@ -115,10 +106,6 @@
         <mat-icon>add</mat-icon>
       </button>
       <!-- Input field for adding a new node -->
-      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-        <mat-label>Enter new node</mat-label>
-        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Enter new node">
-      </mat-form-field>
       <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
         <mat-icon>save</mat-icon>
       </button>
@@ -126,7 +113,11 @@
       <button mat-icon-button (click)="deleteNode(node.id)">
         <mat-icon>delete</mat-icon>
       </button>
-      <button mat-icon-button (click)="editNode(node)">
+      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+        <mat-label>enter new child node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
+      </mat-form-field>
+      <button mat-icon-button (click)="editNode(node)" *ngIf="!isInputFieldVisible">
         <mat-icon>edit</mat-icon>
       </button>
       <!-- Input field and select dropdown for updating node details -->
