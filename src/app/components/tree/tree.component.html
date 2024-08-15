@@ -94,7 +94,7 @@
   
     <!-- Node definition for expandable nodes -->
     <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-      <button mat-icon-button matTreeNodeToggle (click)="toggleExpand(boolean, node)">
+      <button mat-icon-button matTreeNodeToggle (click)="toggleExpand(treeControl.isExpanded(node), node)">
         <mat-icon>
           {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
         </mat-icon>

@@ -115,8 +115,6 @@ export class TreeComponent {
   isInputFieldVisible: boolean = false;
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
-  key: string = '';
-  boolean : boolean = true;
 
 
 
@@ -156,12 +154,11 @@ export class TreeComponent {
     if (isExpand) {
       // If expanding, fetch child nodes from the API
       this.getDatabypage(node);
-      this.boolean = false;
+      
 
     } else {
       // If collapsing, simply collapse the node
       this.treeControl.collapse(node);
-      this.boolean = true;
     }
   }
 
