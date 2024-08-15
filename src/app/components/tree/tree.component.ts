@@ -106,7 +106,7 @@ export class TreeComponent {
   nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
   selectedParent: TodoItemFlatNode | null = null;
   nodeInput: { [key: string | number]: string } = {}; // Store input values for each node
-  treeControl: FlatTreeControl<TodoItemFlatNode>;
+  treeControl: FlatTreeControl<TodoItemFlatNode>
   treeFlattener: MatTreeFlattener<TodoItemNode, TodoItemFlatNode>;
   dataSource: MatTreeFlatDataSource<TodoItemNode, TodoItemFlatNode>;
   checklistSelection = new SelectionModel<TodoItemFlatNode>(true /* multiple */);
@@ -116,24 +116,7 @@ export class TreeComponent {
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
   key: string = '';
-  expandedNodes = new Set<number>();
-
-  trackExpandedNodes(node: TodoItemFlatNode) {
-    if (this.treeControl.isExpanded(node)) {
-      this.expandedNodes.add(node.id!);
-    } else {
-      this.expandedNodes.delete(node.id!);
-    }
-  }
   
-  restoreExpandedNodes() {
-    this.treeControl.dataNodes.forEach(node => {
-      if (this.expandedNodes.has(node.id!)) {
-        this.treeControl.expand(node);
-      }
-    });
-  }
-
 
 
 
@@ -145,6 +128,7 @@ export class TreeComponent {
       todoItemNode.item = node.node;
       todoItemNode.id = node.id;
       todoItemNode.parent = node.parent?.id; // Store the parent ID
+      todoItemNode.childrenLength = node.childrenLength;
       todoItemNode.children = [];
       if (todoItemNode?.id) {
         nodeMap.set(todoItemNode.id, todoItemNode);
@@ -193,6 +177,7 @@ export class TreeComponent {
     });
 
   }
+
   getDatabypage(node: TodoItemFlatNode) {
     const nodeId = node.id;
     if (!nodeId) return;
@@ -229,7 +214,6 @@ export class TreeComponent {
         try {
           const nodes = response.nodes || [];
           const data = this.mapNodes(nodes);
-  
           // Update dataSource with the filtered data
           this.dataSource.data = data;
           this.expandAllNodes(); // Expand all nodes
@@ -265,24 +249,25 @@ export class TreeComponent {
   hasNoContent = (_: number, _nodeData: TodoItemFlatNode) => _nodeData.item === '';
 
   transformer = (node: TodoItemNode, level: number) => {
-    const existingNode = this.nestedNodeMap.get(node);
-    const flatNode =
-      existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
-    flatNode.item = node.item;
-    flatNode.level = level;
-    if (node.childrenLength === 0) {
-      flatNode.expandable = false
-    }
-    else {
-      flatNode.expandable = true;
-    }
-    flatNode.id = node.id; // Map ID to flat node
-    this.flatNodeMap.set(flatNode, node);
-    console.log('FlatNode:', flatNode);
-    this.nestedNodeMap.set(node, flatNode);
-    console.log('NestedNode:', node);
-    return flatNode;
-  };
+  const existingNode = this.nestedNodeMap.get(node);
+  const flatNode =
+    existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
+
+  flatNode.item = node.item;
+  flatNode.level = level;
+  flatNode.id = node.id; // Map ID to flat node
+
+  // Use a default value of 0 if childrenLength is undefined
+  const childrenLength = node.childrenLength ?? 0;
+
+  // Set 'expandable' to true only if the node has children or childrenLength > 0
+  flatNode.expandable = !!node.children.length || childrenLength > 0;
+
+  this.flatNodeMap.set(flatNode, node);
+  this.nestedNodeMap.set(node, flatNode);
+
+  return flatNode;
+};
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
