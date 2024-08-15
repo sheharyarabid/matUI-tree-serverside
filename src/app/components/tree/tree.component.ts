@@ -116,6 +116,26 @@ export class TreeComponent {
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
   key: string = '';
+  expandedNodes = new Set<number>();
+
+  trackExpandedNodes(node: TodoItemFlatNode) {
+    if (this.treeControl.isExpanded(node)) {
+      this.expandedNodes.add(node.id!);
+    } else {
+      this.expandedNodes.delete(node.id!);
+    }
+  }
+  
+  restoreExpandedNodes() {
+    this.treeControl.dataNodes.forEach(node => {
+      if (this.expandedNodes.has(node.id!)) {
+        this.treeControl.expand(node);
+      }
+    });
+  }
+
+
+
 
   mapNodes(nodes: any[]): TodoItemNode[] { //works diff for bth..
     const nodeMap = new Map<number, TodoItemNode>();
@@ -202,15 +222,17 @@ export class TreeComponent {
   }
   
   getDatabyFilter(filterKey: string) {
-    if (!filterKey)
-      return; // Exit if no filter key is provided
-
+    if (!filterKey) return;
+  
     this.http.get<any>(`${apiUrl}/getfilter/?filter=${filterKey}`).subscribe(
       (response: any) => {
         try {
           const nodes = response.nodes || [];
-          const data = this.mapNodes(nodes); // Map the response to TodoItemNode[]
+          const data = this.mapNodes(nodes);
+  
+          // Update dataSource with the filtered data
           this.dataSource.data = data;
+          this.expandAllNodes(); // Expand all nodes
           this.initializeNodeInputs(data); // Initialize input values for each node
           this.filterKey = ''; // Clear the filter key after applying the filter
         } catch (error) {
@@ -224,6 +246,13 @@ export class TreeComponent {
       }
     );
   }
+  
+  expandAllNodes() {
+    this.treeControl.dataNodes.forEach(node => {
+      this.treeControl.expand(node);
+    });
+  }
+  
 
   getLevel = (node: TodoItemFlatNode) => node.level;
 
@@ -247,10 +276,11 @@ export class TreeComponent {
     else {
       flatNode.expandable = true;
     }
-
     flatNode.id = node.id; // Map ID to flat node
     this.flatNodeMap.set(flatNode, node);
+    console.log('FlatNode:', flatNode);
     this.nestedNodeMap.set(node, flatNode);
+    console.log('NestedNode:', node);
     return flatNode;
   };
 
