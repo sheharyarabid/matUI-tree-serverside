@@ -116,7 +116,7 @@ export class TreeComponent {
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
   key: string = '';
-  
+  boolean : boolean = true;
 
 
 
@@ -152,6 +152,18 @@ export class TreeComponent {
     this.isInputFieldVisible = !this.isInputFieldVisible;
     this.nodeInput = {}; // Clear the input field when toggling
   }
+  toggleExpand(isExpand: boolean, node: TodoItemFlatNode) {
+    if (isExpand) {
+      // If expanding, fetch child nodes from the API
+      this.getDatabypage(node);
+      this.boolean = false;
+
+    } else {
+      // If collapsing, simply collapse the node
+      this.treeControl.collapse(node);
+      this.boolean = true;
+    }
+  }
 
   constructor(private _database: ChecklistDatabase, private http: HttpClient, private cdr: ChangeDetectorRef) {
     this.treeFlattener = new MatTreeFlattener(
@@ -177,8 +189,6 @@ export class TreeComponent {
     });
 
   }
-  
- 
   
   getLevel = (node: TodoItemFlatNode) => node.level;
 
