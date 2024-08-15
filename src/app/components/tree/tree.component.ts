@@ -102,7 +102,6 @@ export class ChecklistDatabase {
   ],
 })
 export class TreeComponent {
-  
   flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
   nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
   selectedParent: TodoItemFlatNode | null = null;
@@ -149,7 +148,6 @@ export class TreeComponent {
     // Return only root nodes (nodes without parents)
     return Array.from(nodeMap.values()).filter(node => !node.parent);
   }
-  
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
     this.nodeInput = {}; // Clear the input field when toggling
@@ -162,9 +160,9 @@ export class TreeComponent {
       this.isExpandable,
       this.getChildren,
     );
+
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
-
     _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
@@ -179,7 +177,9 @@ export class TreeComponent {
     });
 
   }
+  
  
+  
   getLevel = (node: TodoItemFlatNode) => node.level;
 
   isExpandable = (node: TodoItemFlatNode) => node.expandable;
@@ -261,7 +261,8 @@ getDatabyFilter(filterKey: string) {
         const nodes = response.nodes || [];
         const data = this.mapNodes(nodes);
         // Update dataSource with the filtered data
-        this.dataSource.data = data;
+        this._database.dataChange.next(data); // Trigger change detection
+        this.treeControl.expand(nodes); // Expand the node to show the children
         this.expandAllNodes(); // Expand all nodes
         this.initializeNodeInputs(data); // Initialize input values for each node
         this.filterKey = ''; // Clear the filter key after applying the filter
@@ -304,7 +305,7 @@ initializeNodeInputs(nodes: TodoItemNode[]) {
   nodes.forEach(traverseNodes);
 }
 
- // C-R-U-D operations
+ // CRUD operations
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
