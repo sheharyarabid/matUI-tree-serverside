@@ -117,7 +117,6 @@ export class TreeComponent {
   filterKey: string = '';
 
 
-
   mapNodes(nodes: any[]): TodoItemNode[] { //works diff for bth..
     const nodeMap = new Map<number, TodoItemNode>();
     // First pass: Create all nodes and map them by ID
