@@ -102,6 +102,7 @@ export class ChecklistDatabase {
   ],
 })
 export class TreeComponent {
+  
   flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
   nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
   selectedParent: TodoItemFlatNode | null = null;
@@ -148,6 +149,7 @@ export class TreeComponent {
     // Return only root nodes (nodes without parents)
     return Array.from(nodeMap.values()).filter(node => !node.parent);
   }
+  
   toggleInputField() {
     this.isInputFieldVisible = !this.isInputFieldVisible;
     this.nodeInput = {}; // Clear the input field when toggling
@@ -160,9 +162,9 @@ export class TreeComponent {
       this.isExpandable,
       this.getChildren,
     );
-
     this.treeControl = new FlatTreeControl<TodoItemFlatNode>(this.getLevel, this.isExpandable);
     this.dataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
+
     _database.dataChange.subscribe(data => {
       this.dataSource.data = data;
       this.initializeNodeInputs(data); // Initialize input values when data changes
@@ -177,67 +179,7 @@ export class TreeComponent {
     });
 
   }
-
-  getDatabypage(node: TodoItemFlatNode) {
-    const nodeId = node.id;
-    if (!nodeId) return;
-  
-    this.http.get<any>(`${apiUrl}/getfilter/?parentId=${nodeId}`).subscribe(
-      (response: any) => {
-        try {
-          const nodes = response.nodes || [];
-          const childNodes = this._database.mapNodes(nodes); // Map the response to TodoItemNode[]
-  
-          const parentNode = this.flatNodeMap.get(node);
-          if (parentNode) {
-            parentNode.children = childNodes; // Append children to the node
-            parentNode.expandable = childNodes.length > 0; // Update expandable status
-            
-            this._database.dataChange.next(this._database.data); // Trigger change detection
-            this.treeControl.expand(node); // Expand the node to show the children
-          }
-        } catch (error) {
-          console.error('Error processing data:', error);
-        }
-      },
-      error => {
-        console.error('Error fetching data:', error);
-      }
-    );
-  }
-  
-  getDatabyFilter(filterKey: string) {
-    if (!filterKey) return;
-  
-    this.http.get<any>(`${apiUrl}/getfilter/?filter=${filterKey}`).subscribe(
-      (response: any) => {
-        try {
-          const nodes = response.nodes || [];
-          const data = this.mapNodes(nodes);
-          // Update dataSource with the filtered data
-          this.dataSource.data = data;
-          this.expandAllNodes(); // Expand all nodes
-          this.initializeNodeInputs(data); // Initialize input values for each node
-          this.filterKey = ''; // Clear the filter key after applying the filter
-        } catch (error) {
-          console.error('Error processing data:', error);
-          this.dataSource.data = [];
-        }
-      },
-      error => {
-        console.error('Error fetching data:', error);
-        this.dataSource.data = [];
-      }
-    );
-  }
-  
-  expandAllNodes() {
-    this.treeControl.dataNodes.forEach(node => {
-      this.treeControl.expand(node);
-    });
-  }
-  
-
+ 
   getLevel = (node: TodoItemFlatNode) => node.level;
 
   isExpandable = (node: TodoItemFlatNode) => node.expandable;
@@ -250,12 +192,19 @@ export class TreeComponent {
 
   transformer = (node: TodoItemNode, level: number) => {
   const existingNode = this.nestedNodeMap.get(node);
-  const flatNode =
-    existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
+  const flatNode = existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
 
   flatNode.item = node.item;
   flatNode.level = level;
   flatNode.id = node.id; // Map ID to flat node
+
+  // if (node.childrenLength === 0) {
+  //   flatNode.expandable = false
+  // }
+  // else {
+  //   flatNode.expandable = true;
+  // }
+
 
   // Use a default value of 0 if childrenLength is undefined
   const childrenLength = node.childrenLength ?? 0;
@@ -268,6 +217,94 @@ export class TreeComponent {
 
   return flatNode;
 };
+
+expandAllNodes() {
+  this.treeControl.dataNodes.forEach(node => {
+    this.treeControl.expand(node);
+  });
+}
+
+getDatabypage(node: TodoItemFlatNode) {
+  const nodeId = node.id;
+  if (!nodeId) return;
+
+  this.http.get<any>(`${apiUrl}/getfilter/?parentId=${nodeId}`).subscribe(
+    (response: any) => {
+      try {
+        const nodes = response.nodes || [];
+        const childNodes = this._database.mapNodes(nodes); // Map the response to TodoItemNode[]
+
+        const parentNode = this.flatNodeMap.get(node);
+        if (parentNode) {
+          parentNode.children = childNodes; // Append children to the node
+          parentNode.expandable = childNodes.length > 0; // Update expandable status
+          
+          this._database.dataChange.next(this._database.data); // Trigger change detection
+          this.treeControl.expand(node); // Expand the node to show the children
+        }
+      } catch (error) {
+        console.error('Error processing data:', error);
+      }
+    },
+    error => {
+      console.error('Error fetching data:', error);
+    }
+  );
+}
+
+getDatabyFilter(filterKey: string) {
+  if (!filterKey) return;
+
+  this.http.get<any>(`${apiUrl}/getfilter/?filter=${filterKey}`).subscribe(
+    (response: any) => {
+      try {
+        const nodes = response.nodes || [];
+        const data = this.mapNodes(nodes);
+        // Update dataSource with the filtered data
+        this.dataSource.data = data;
+        this.expandAllNodes(); // Expand all nodes
+        this.initializeNodeInputs(data); // Initialize input values for each node
+        this.filterKey = ''; // Clear the filter key after applying the filter
+      } catch (error) {
+        console.error('Error processing data:', error);
+        this.dataSource.data = [];
+      }
+    },
+    error => {
+      console.error('Error fetching data:', error);
+      this.dataSource.data = [];
+    }
+  );
+}
+
+getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
+  const currentLevel = this.getLevel(node);
+  if (currentLevel < 1) {
+    return null;
+  }
+
+  const startIndex = this.treeControl.dataNodes.indexOf(node) - 1;
+
+  for (let i = startIndex; i >= 0; i--) {
+    const currentNode = this.treeControl.dataNodes[i];
+    if (this.getLevel(currentNode) < currentLevel) {
+      return currentNode;
+    }
+  }
+  return null;
+}
+
+// Toggle Input Field C-U operations
+initializeNodeInputs(nodes: TodoItemNode[]) {
+  const traverseNodes = (node: TodoItemNode) => {
+    this.nodeInput[node.item] = ''; // Initialize input for each node
+    node.children.forEach(traverseNodes);
+  };
+
+  nodes.forEach(traverseNodes);
+}
+
+ // C-R-U-D operations
 
   createNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
@@ -301,34 +338,6 @@ export class TreeComponent {
       }
     );
   }
-
-  getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
-    const currentLevel = this.getLevel(node);
-    if (currentLevel < 1) {
-      return null;
-    }
-
-    const startIndex = this.treeControl.dataNodes.indexOf(node) - 1;
-
-    for (let i = startIndex; i >= 0; i--) {
-      const currentNode = this.treeControl.dataNodes[i];
-      if (this.getLevel(currentNode) < currentLevel) {
-        return currentNode;
-      }
-    }
-    return null;
-  }
-
-  // Initialize node input values
-  initializeNodeInputs(nodes: TodoItemNode[]) {
-    const traverseNodes = (node: TodoItemNode) => {
-      this.nodeInput[node.item] = ''; // Initialize input for each node
-      node.children.forEach(traverseNodes);
-    };
-
-    nodes.forEach(traverseNodes);
-  }
-
 
   deleteNode(nodeId: TodoItemFlatNode) {
     this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
@@ -364,7 +373,7 @@ export class TreeComponent {
 
     let updateNodeParent = this.updatedParent;
     const newValue = this.nodeInput[node.item] || '';
-    // console.log('New value:', newValue);
+
 
     const payload = {
       node: newValue || flatNode.item, // Use the input value if available, otherwise use the existing value
