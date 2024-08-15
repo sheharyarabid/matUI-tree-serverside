@@ -73,7 +73,7 @@ export class ChecklistDatabase {
       todoItemNode.id = node.id; // Ensure ID is correctly mapped
       todoItemNode.children = (node.children || []).map(convertToTodoItemNode);
       todoItemNode.childrenLength = node.childrenLength;
-      todoItemNode.expandable = false; // Set 'expandable' based on children length
+      todoItemNode.expandable = node.childrenLength > 0;  // Set 'expandable' based on children length
       return todoItemNode;
     };
 
@@ -173,38 +173,34 @@ export class TreeComponent {
     });
 
   }
-  getDatabypage(node : TodoItemFlatNode) {
-    const key = node.id;
-    if (!key) {
-      this._database.initialize();
-    }
-    else {
-      this.http.get<any>(`http://localhost:1337/api/tree/getfilter/?parentId=${key}`).subscribe(
-        (response: any) => {
-          try {
-            const nodes = response.nodes || [];
-            const data = this._database.mapNodes(nodes); // Map the response to TodoItemNode[]
-            let getNode = this.flatNodeMap.get(node);
-            console.log(getNode);
-            getNode?.children.push(nodes);
-            this.dataSource.data = data;
-            this.initializeNodeInputs(data); // Initialize input values for each node
-           
+  getDatabypage(node: TodoItemFlatNode) {
+    const nodeId = node.id;
+    if (!nodeId) return;
+  
+    this.http.get<any>(`${apiUrl}/getfilter/?parentId=${nodeId}`).subscribe(
+      (response: any) => {
+        try {
+          const nodes = response.nodes || [];
+          const childNodes = this._database.mapNodes(nodes); // Map the response to TodoItemNode[]
+  
+          const parentNode = this.flatNodeMap.get(node);
+          if (parentNode) {
+            parentNode.children = childNodes; // Append children to the node
+            parentNode.expandable = childNodes.length > 0; // Update expandable status
             
-          } catch (error) {
-            console.error('Error processing data:', error);
-            this.dataSource.data = [];
+            this._database.dataChange.next(this._database.data); // Trigger change detection
+            this.treeControl.expand(node); // Expand the node to show the children
           }
-         
-        },
-        error => {
-          console.error('Error fetching data:', error);
-          this.dataSource.data = [];
+        } catch (error) {
+          console.error('Error processing data:', error);
         }
-      );
-    }
- 
+      },
+      error => {
+        console.error('Error fetching data:', error);
+      }
+    );
   }
+  
   getDatabyFilter(filterKey: string) {
     if (!filterKey)
       return; // Exit if no filter key is provided

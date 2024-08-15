@@ -94,9 +94,8 @@
   
     <!-- Node definition for expandable nodes -->
     <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-      <!-- Expand/Collapse button -->
-      <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle' + node.item" [disabled]="!node.expandable" (click)="getDatabypage(node)">
-        <mat-icon class="mat-icon-rtl-mirror">
+      <button mat-icon-button matTreeNodeToggle (click)="getDatabypage(node)">
+        <mat-icon>
           {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
         </mat-icon>
       </button>
