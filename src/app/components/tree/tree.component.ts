@@ -432,6 +432,7 @@ export class TodoItemFlatNode {
 const apiUrl = 'http://localhost:1337/api/tree';
 @Injectable()
 export class ChecklistDatabase {
+  private filteredNodeCache = new Map<number, TodoItemNode[]>(); // Cache for filtered data
   private nodeCache = new Map<number, TodoItemNode[]>(); // Cache to store loaded child nodes
   dataChange = new BehaviorSubject<TodoItemNode[]>([]);
   constructor(private http: HttpClient) {
@@ -576,21 +577,35 @@ export class TreeComponent {
     const nodeId = node.id;
     if (!nodeId) return;
   
-    this._database.getCachedOrFetchChildren(nodeId).subscribe(
-      (childNodes: TodoItemNode[]) => {
-        const parentNode = this.flatNodeMap.get(node);
-        if (parentNode) {
-          parentNode.children = childNodes;
-          parentNode.expandable = childNodes.length > 0;
+    // Check if the node is part of the filtered data
+    const filteredChildren = this._database['filteredNodeCache'].get(nodeId);
+    if (filteredChildren) {
+      const parentNode = this.flatNodeMap.get(node);
+      if (parentNode) {
+        parentNode.children = filteredChildren;
+        parentNode.expandable = filteredChildren.length > 0;
   
-          this._database.dataChange.next(this._database.data); // Trigger change detection
-          this.treeControl.expand(node); // Expand the node to show the children
-        }
-      },
-      error => {
-        console.error('Error loading children:', error);
+        this._database.dataChange.next(this._database.data); // Trigger change detection
+        this.treeControl.expand(node); // Expand the node to show the children
       }
-    );
+    } else {
+      // If not filtered, use pagination
+      this._database.getCachedOrFetchChildren(nodeId).subscribe(
+        (childNodes: TodoItemNode[]) => {
+          const parentNode = this.flatNodeMap.get(node);
+          if (parentNode) {
+            parentNode.children = childNodes;
+            parentNode.expandable = childNodes.length > 0;
+  
+            this._database.dataChange.next(this._database.data); // Trigger change detection
+            this.treeControl.expand(node); // Expand the node to show the children
+          }
+        },
+        error => {
+          console.error('Error loading children:', error);
+        }
+      );
+    }
   }
   
   constructor(private _database: ChecklistDatabase, private http: HttpClient, private cdr: ChangeDetectorRef) {
@@ -688,26 +703,40 @@ getDatabyFilter(filterKey: string) {
   this.http.get<any>(`${apiUrl}/getfilter/?filter=${filterKey}`).subscribe(
     (response: any) => {
       try {
-        const nodes = response.nodes || [];
-        const data = this.mapNodes(nodes);
-        // Update dataSource with the filtered data
-        this._database.dataChange.next(data); // Trigger change detection
-        this.treeControl.expand(nodes); // Expand the node to show the children
-        // this.expandAllNodes(); // Expand all nodes
-        this.initializeNodeInputs(data); // Initialize input values for each node
-        this.filterKey = ''; // Clear the filter key after applying the filter
+        const nodes = this.mapNodes(response.nodes);
+        
+        // Cache the filtered nodes and their ancestors
+        nodes.forEach(node => {
+          if (node.id) {
+            this._database['filteredNodeCache'].set(node.id, node.children);
+          }
+        });
+
+        this._database.dataChange.next(nodes); // Update data with filtered nodes
+        // this.expandAllFilteredAncestors(nodes); // Expand ancestors of the filtered node
+        this.initializeNodeInputs(nodes); // Initialize input values for each node
       } catch (error) {
-        console.error('Error processing data:', error);
+        console.error('Error processing filtered data:', error);
         this.dataSource.data = [];
       }
     },
     error => {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching filtered data:', error);
       this.dataSource.data = [];
     }
   );
 }
+expandAllFilteredAncestors(nodes: TodoItemNode[]) {
+  const expandAncestors = (node: TodoItemNode) => {
+    const flatNode = this.nestedNodeMap.get(node);
+    if (flatNode) {
+      this.treeControl.expand(flatNode);
+    }
+    node.children.forEach(expandAncestors);
+  };
 
+  nodes.forEach(expandAncestors);
+}
 getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
   const currentLevel = this.getLevel(node);
   if (currentLevel < 1) {
