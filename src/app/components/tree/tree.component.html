@@ -26,35 +26,39 @@
       </button>
       {{node.item}}
       <!-- Button to toggle input field visibility -->
-      <button mat-icon-button (click)="toggleInputField()">
+      <button mat-icon-button (click)="toggleAdd(node)">
         <mat-icon>add</mat-icon>
       </button>
-      <!-- Input field for adding a new node -->
-      <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
-        <mat-icon>save</mat-icon>
-      </button>
-      <!-- Buttons for delete and edit operations -->
-      <button mat-icon-button (click)="deleteNode(node.id)">
-        <mat-icon>delete</mat-icon>
-      </button>
-      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+      <mat-form-field appearance="fill" *ngIf="node.isAdding">
         <mat-label>enter new child node</mat-label>
         <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
       </mat-form-field>
-      <button mat-icon-button (click)="editNode(node)" *ngIf="!isInputFieldVisible">
+      <button mat-icon-button *ngIf="node.isAdding" (click)="createNode(node)">
+        <mat-icon>save</mat-icon>
+      </button>
+
+      <button mat-icon-button (click)="deleteNode(node.id)">
+        <mat-icon>delete</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleUpdate(node)">
         <mat-icon>edit</mat-icon>
       </button>
       <!-- Input field and select dropdown for updating node details -->
-      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
         <mat-label>Update Node Name</mat-label>
         <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
       </mat-form-field>
-      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-        <mat-label>Select new parent node</mat-label>
-        <mat-select [(ngModel)]="updatedParent">
-           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
+  <mat-label>Select new parent node</mat-label>
+  <mat-select [(ngModel)]="updatedParent">
+    <mat-option *ngFor="let parent of validParents" [value]="parent.id">
+      {{ parent.name }}
+    </mat-option>
+  </mat-select>
+</mat-form-field>
+      <button mat-icon-button  *ngIf="node.isUpdating" (click)="editNode(node)">
+        <mat-icon>save</mat-icon>
+      </button>
     </mat-tree-node>
   
     <!-- Node definition for nodes without content -->
@@ -65,31 +69,36 @@
         <mat-icon>add</mat-icon>
       </button>
       <!-- Input field for adding a new node -->
-      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
+      <mat-form-field appearance="fill" *ngIf="node.isAdding">
         <mat-label>enter new child node</mat-label>
         <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
       </mat-form-field>
-      <button mat-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
+      <button mat-button *ngIf="node.isAdding" (click)="createNode(node)">
           <mat-icon>save</mat-icon>
-        </button>
+      </button>
       <!-- Buttons for delete and edit operations -->
       <button mat-button (click)="deleteNode(node.id)">
         <mat-icon>delete</mat-icon>
       </button>
-      <button mat-button (click)="editNode(node)">
+      <button mat-icon-button (click)="toggleUpdate(node)">
         <mat-icon>edit</mat-icon>
       </button>
       <!-- Input field and select dropdown for updating node details -->
-      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
         <mat-label>Update Node Name</mat-label>
-        <input matInput [(ngModel)]="nodeInput['node']" placeholder="Node Name">
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
       </mat-form-field>
-       <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-        <mat-label>Select new parent node</mat-label>
-        <mat-select [(ngModel)]="updatedParent">
-           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
+  <mat-label>Select new parent node</mat-label>
+  <mat-select [(ngModel)]="updatedParent">
+    <mat-option *ngFor="let parent of validParents" [value]="parent">
+      {{ parent.name }}
+    </mat-option>
+  </mat-select>
+</mat-form-field>
+      <button mat-icon-button  *ngIf="node.isUpdating" (click)="editNode(node)">
+        <mat-icon>save</mat-icon>
+      </button>
     </mat-tree-node>
   
     <!-- Node definition for expandable nodes -->
@@ -101,35 +110,40 @@
       </button>
       {{node.item}}
       <!-- Button to toggle input field visibility -->
-      <button mat-icon-button (click)="toggleInputField()">
+      <button mat-icon-button (click)="toggleAdd(node)">
         <mat-icon>add</mat-icon>
       </button>
+      <mat-form-field appearance="fill" *ngIf="node.isAdding">
+        <mat-label>enter new child node</mat-label>
+        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
+      </mat-form-field>
       <!-- Input field for adding a new node -->
-      <button mat-icon-button (click)="createNode(node)" *ngIf="isInputFieldVisible">
+      <button mat-icon-button *ngIf="node.isAdding" (click)="createNode(node)">
         <mat-icon>save</mat-icon>
       </button>
       <!-- Buttons for delete and edit operations -->
       <button mat-icon-button (click)="deleteNode(node.id)">
         <mat-icon>delete</mat-icon>
       </button>
-      <mat-form-field appearance="fill" *ngIf="isInputFieldVisible">
-        <mat-label>enter new child node</mat-label>
-        <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="enter new child node">
-      </mat-form-field>
-      <button mat-icon-button (click)="editNode(node)" *ngIf="!isInputFieldVisible">
+      <button mat-icon-button (click)="toggleUpdate(node)">
         <mat-icon>edit</mat-icon>
       </button>
       <!-- Input field and select dropdown for updating node details -->
-      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
         <mat-label>Update Node Name</mat-label>
         <input matInput [(ngModel)]="nodeInput[node.item]" placeholder="Node Name">
       </mat-form-field>
-      <mat-form-field appearance="fill" *ngIf="!isInputFieldVisible">
-        <mat-label>Select new parent node</mat-label>
-        <mat-select [(ngModel)]="updatedParent">
-           <mat-option *ngFor="let parent of getValidParents(node)" [value]="parent">{{parent.item}}</mat-option>
-        </mat-select>
-      </mat-form-field>
+      <mat-form-field appearance="fill" *ngIf="node.isUpdating">
+  <mat-label>Select new parent node</mat-label>
+  <mat-select [(ngModel)]="updatedParent">
+    <mat-option *ngFor="let parent of validParents" [value]="parent.id">
+      {{ parent.name }}
+    </mat-option>
+  </mat-select>
+</mat-form-field>
+      <button mat-icon-button  *ngIf="node.isUpdating" (click)="editNode(node)">
+        <mat-icon>save</mat-icon>
+      </button>
     </mat-tree-node>
   </mat-tree>
 </body>

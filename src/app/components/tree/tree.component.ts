@@ -30,6 +30,12 @@ export class TodoItemFlatNode {
   level: number = 0;
   expandable: boolean = true;
   id?: number; // Ensure ID is included
+  isAdding?: boolean;
+  isUpdating?: boolean;
+  isDeleting?: boolean;
+  parent?: {
+    id: number;
+  };
 }
 const apiUrl = 'http://localhost:1337/api/tree';
 @Injectable()
@@ -53,7 +59,6 @@ export class ChecklistDatabase {
           // const data = response.nodes;
           const data = this.mapNodes(response.nodes);
           this.dataChange.next(data);
-          // console.log('Data source:', this.dataChange.value);
         } catch (error) {
           console.error('Error processing data:', error);
           this.dataChange.next([]);
@@ -68,7 +73,6 @@ export class ChecklistDatabase {
   getCachedOrFetchChildren(nodeId: number): Observable<TodoItemNode[]> {
     const cachedChildren = this.nodeCache.get(nodeId);
     if (cachedChildren) {
-        console.log('here');
       return of(cachedChildren); // Return cached children as an Observable
     } else {
       return this.http.get<any>(`${apiUrl}/getfilter/?parentId=${nodeId}`).pipe(
@@ -118,6 +122,7 @@ export class ChecklistDatabase {
   ],
 })
 export class TreeComponent {
+ 
   flatNodeMap = new Map<TodoItemFlatNode, TodoItemNode>();
   nestedNodeMap = new Map<TodoItemNode, TodoItemFlatNode>();
   selectedParent: TodoItemFlatNode | null = null;
@@ -131,7 +136,7 @@ export class TreeComponent {
   isInputFieldVisible: boolean = false;
   updatedParent!: TodoItemFlatNode;
   filterKey: string = '';
-
+  validParents: any[] = [];
 
   mapNodes(nodes: any[]): TodoItemNode[] { //works diff for bth..
     const nodeMap = new Map<number, TodoItemNode>();
@@ -168,8 +173,15 @@ export class TreeComponent {
   toggleExpand(isExpand: boolean, node: TodoItemFlatNode) {
     if (isExpand) {
       if (node) {
+        let savenode = this.flatNodeMap.get(node) as TodoItemNode;
+        if(savenode?.children.length > 0){
+          return;
+        }
+        else {
+          
+          this.loadChildren(node);
+        }
         // If expanding, fetch child nodes from cache or API
-        this.loadChildren(node);
       }
     } else {
       // If collapsing, simply collapse the node
@@ -199,7 +211,7 @@ export class TreeComponent {
           if (parentNode) {
             parentNode.children = childNodes;
             parentNode.expandable = childNodes.length > 0;
-  
+            console.log(childNodes.length)
             this._database.dataChange.next(this._database.data); // Trigger change detection
             this.treeControl.expand(node); // Expand the node to show the children
           }
@@ -246,13 +258,24 @@ export class TreeComponent {
 
   hasNoContent = (_: number, _nodeData: TodoItemFlatNode) => _nodeData.item === '';
 
+  toAdd = (node: TodoItemFlatNode) => node.isAdding = true;
+  toUpdate = (node: TodoItemFlatNode) => node.isUpdating = true;
+  toDelete = (node: TodoItemFlatNode) => node.isDeleting = true;
+
   transformer = (node: TodoItemNode, level: number) => {
+  
   const existingNode = this.nestedNodeMap.get(node);
   const flatNode = existingNode && existingNode.item === node.item ? existingNode : new TodoItemFlatNode();
 
   flatNode.item = node.item;
   flatNode.level = level;
   flatNode.id = node.id; // Map ID to flat node
+  
+  flatNode.isAdding = false;
+  flatNode.isUpdating = false;
+  flatNode.isDeleting = false;
+
+
 
   // Use a default value of 0 if childrenLength is undefined
   const childrenLength = node.childrenLength ?? 0;
@@ -274,7 +297,9 @@ expandAllNodes() {
 
 getDatabypage(node: TodoItemFlatNode) {
   const nodeId = node.id;
-  if (!nodeId) return;
+  if (!nodeId) 
+    
+    return;
 
   this.http.get<any>(`${apiUrl}/getfilter/?parentId=${nodeId}`).subscribe(
     (response: any) => {
@@ -312,11 +337,12 @@ getDatabyFilter(filterKey: string) {
         nodes.forEach(node => {
           if (node.id) {
             this._database['filteredNodeCache'].set(node.id, node.children);
+            console.log(this._database['filteredNodeCache'])
           }
         });
 
         this._database.dataChange.next(nodes); // Update data with filtered nodes
-        // this.expandAllFilteredAncestors(nodes); // Expand ancestors of the filtered node
+
         this.initializeNodeInputs(nodes); // Initialize input values for each node
       } catch (error) {
         console.error('Error processing filtered data:', error);
@@ -356,6 +382,17 @@ getParentNode(node: TodoItemFlatNode): TodoItemFlatNode | null {
   }
   return null;
 }
+toggleAdd(node: TodoItemFlatNode) {
+  this.toAdd(node);
+}
+
+toggleUpdate(node: TodoItemFlatNode) {
+  this.toUpdate(node);
+  if (node.isUpdating) {
+    // Fetch valid parents when node update is initiated
+    this.getValidParents(node);
+  }
+}
 
 // Toggle Input Field C-U operations
 initializeNodeInputs(nodes: TodoItemNode[]) {
@@ -391,7 +428,7 @@ initializeNodeInputs(nodes: TodoItemNode[]) {
           children: [],
           expandable: false
         };
-
+        this._database.dataChange.next(this._database.data);
         this._database.initialize();
         this.nodeInput[node.item] = ''; // Clear the input field after saving
       },
@@ -405,9 +442,10 @@ initializeNodeInputs(nodes: TodoItemNode[]) {
   deleteNode(nodeId: TodoItemFlatNode) {
     this.http.delete(`${apiUrl}/delete/${nodeId}`).subscribe(
       (response: any) => {
-        // console.log('Node deleted successfully:', response);
+        console.log('Node deleted successfully:', response.node.item);
         // this.removeNodeFromTree(nodeId); //client side datasource
         this._database.initialize();
+        this.dataSource.data = [...this.dataSource.data];
       },
       error => {
         console.error('Error deleting node:', error.message);
@@ -416,22 +454,52 @@ initializeNodeInputs(nodes: TodoItemNode[]) {
     );
   }
 
-  getValidParents(node: TodoItemFlatNode): TodoItemFlatNode[] {
-    const descendants = this.treeControl.getDescendants(node);
-    // Get the parent of the given node.
-    const parent = this.getParentNode(node);
-    // Filter out nodes that are either the node itself, its parent, or any of its descendants.
-    const validNodesList = this.treeControl.dataNodes.filter(
-      (n) => !descendants.includes(n) && n !== node && n !== parent
+
+
+
+
+
+
+  getValidParents(node: TodoItemFlatNode): void {
+    // URL to fetch valid parents with dynamic node ID
+  
+    // Fetch valid parents from the API based on node.id
+    this.http.get<any>(`${apiUrl}/dropdown/?id=${node.id}`).subscribe(
+      (response: any) => {
+        try {
+          // Assuming response contains a list of valid parent nodes
+          const validNodesList = response.validParents;
+          console.log('Valid Parents:', validNodesList);
+          validNodesList.forEach((node: any) => {
+            this.validParents.push({
+              name: node.node
+            });
+          });
+          console.log('Valid Parents:', this.validParents);
+          return this.validParents; 
+          // Log valid nodes for debugging
+
+        } catch (error) {
+          console.error('Error processing valid parents:', error);
+        }
+      },
+      (error) => {
+        console.error('Error fetching valid parents:', error);
+      }
     );
-    return validNodesList;
   }
+  
+
 
   editNode(node: TodoItemFlatNode) {
     const flatNode = this.flatNodeMap.get(node);
     if (!flatNode) {
       console.error('FlatNode not found');
       return;
+    }
+
+    if(!this.updatedParent) {
+      console.error('Parent not found');
     }
 
     let updateNodeParent = this.updatedParent;
@@ -449,6 +517,7 @@ initializeNodeInputs(nodes: TodoItemNode[]) {
       (response: any) => {
         console.log('Node updated successfully:', response);
         this._database.initialize();
+        this.dataSource.data = [...this.dataSource.data];
       },
       error => {
         console.error('Error updating node:', error.message);
